@@ -10,9 +10,25 @@ probabilities = {
 }
 
 scroll_prices = {15: 71888888, 16: 218888888, 17: 2388888888, 18: 6394500000, 19: 18555555555, 20: 50488888888}
-X = 6
-scroll_costs = {star: price / (10**8 / X) for star, price in scroll_prices.items()}
+
+# 換算比例（1億楓幣 = points_per_billion 楓點）
+points_per_billion = 5  # 預設1億楓幣 = 1楓點，可改為其他值
+scroll_costs = {star: price * points_per_billion / 10**8 for star, price in scroll_prices.items()}
 upgrade_cost = 50
+
+# 輸出輸入條件
+print("=== 程式輸入條件 ===")
+print("星卷價格（楓幣）：")
+for star, price in scroll_prices.items():
+    print(f"{star}星：{price:,} 楓幣")
+print("\n楓點與楓幣換算：")
+print(f"換算比例：1億楓幣 = {points_per_billion} 楓點")
+print(f"轉換公式：價格(楓幣) * {points_per_billion} / 10^8")
+print("\n星卷價格（轉換後，楓點）：")
+for star, cost in scroll_costs.items():
+    print(f"{star}星：{cost:.2f} 楓點")
+print(f"\n單次強化成本：{upgrade_cost} 楓點")
+print("=================\n")
 
 # 計算單步期望成本
 def calc_single_step_cost(start, prev_costs):
@@ -101,8 +117,8 @@ def simulate_upgrade(target=20, simulations=100000):
                 total_cost += upgrade_cost
                 outcome = random.random()
                 p_s = probabilities[current_star]["success"]
-                p_d = probabilities[current_star]["drop"]
-                p_h = probabilities[current_star]["hold"]
+                p_d = probabilities[start]["drop"]
+                p_h = probabilities[start]["hold"]
                 
                 if outcome < p_s:
                     path.append(f"{current_star}升{current_star+1} 成功 (成本: 50 楓點)")
