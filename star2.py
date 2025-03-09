@@ -1,23 +1,29 @@
 import random
 
 # 機率表
-probabilities = {
-    15: {"success": 0.30, "drop": 0.00, "hold": 0.70},
-    16: {"success": 0.30, "drop": 0.56, "hold": 0.14},
-    17: {"success": 0.30, "drop": 0.49, "hold": 0.21},
-    18: {"success": 0.30, "drop": 0.42, "hold": 0.28},
-    19: {"success": 0.30, "drop": 0.42, "hold": 0.28},
-}
+def get_probabilities(event_active=False):
+    base_probabilities = {
+        15: {"success": 0.30, "drop": 0.00, "hold": 0.70},
+        16: {"success": 0.30, "drop": 0.56, "hold": 0.14},
+        17: {"success": 0.30, "drop": 0.49, "hold": 0.21},
+        18: {"success": 0.30, "drop": 0.42, "hold": 0.28},
+        19: {"success": 0.30, "drop": 0.42, "hold": 0.28},
+    }
+    if event_active:
+        base_probabilities[15] = {"success": 1.00, "drop": 0.00, "hold": 0.00}
+    return base_probabilities
 
 scroll_prices = {15: 71888888, 16: 218888888, 17: 2388888888, 18: 6394500000, 19: 18555555555, 20: 50488888888}
-
-# 換算比例（1億楓幣 = points_per_billion 楓點）
-points_per_billion = 5  # 預設1億楓幣 = 1楓點，可改為其他值
+points_per_billion = 6
 scroll_costs = {star: price * points_per_billion / 10**8 for star, price in scroll_prices.items()}
-upgrade_cost = 50
+base_upgrade_cost = 50
+event_upgrade_cost = 9
 
-# 輸出輸入條件
+event_active = True  # 設為 True 啟用活動
+probabilities = get_probabilities(event_active)
+
 print("=== 程式輸入條件 ===")
+print(f"活動狀態：{'啟用' if event_active else '未啟用'}（15星強化成功率100%，每次9楓點）")
 print("星卷價格（楓幣）：")
 for star, price in scroll_prices.items():
     print(f"{star}星：{price:,} 楓幣")
@@ -27,11 +33,10 @@ print(f"轉換公式：價格(楓幣) * {points_per_billion} / 10^8")
 print("\n星卷價格（轉換後，楓點）：")
 for star, cost in scroll_costs.items():
     print(f"{star}星：{cost:.2f} 楓點")
-print(f"\n單次強化成本：{upgrade_cost} 楓點")
+print(f"\n單次強化成本：{event_upgrade_cost} 楓點（15到16星，活動啟用時），其他星級或活動未啟用時為 {base_upgrade_cost} 楓點")
 print("=================\n")
 
-# 計算單步期望成本
-def calc_single_step_cost(start, prev_costs):
+def calc_single_step_cost(start, prev_costs, event_active=False):
     if start not in probabilities:
         return 0
     buy_cost = scroll_costs[start + 1]
@@ -39,34 +44,34 @@ def calc_single_step_cost(start, prev_costs):
     p_d = probabilities[start]["drop"]
     p_h = probabilities[start]["hold"]
     C_prev = prev_costs[start - 1] if start - 1 in prev_costs else scroll_costs[start]
-    enhance_cost = (50 * (p_s + p_d + p_h) + p_d * C_prev) / p_s
+    current_upgrade_cost = event_upgrade_cost if event_active and start == 15 else base_upgrade_cost
+    if event_active and start == 15:
+        enhance_cost = current_upgrade_cost  # 100%成功，直接成本
+    else:
+        enhance_cost = (current_upgrade_cost * (p_s + p_d + p_h) + p_d * C_prev) / p_s
     print(f"計算 {start} 到 {start+1}：")
     print(f"  C_prev = {C_prev:.2f}")
-    print(f"  強化成本 = (50 * ({p_s} + {p_d} + {p_h}) + {p_d} * {C_prev:.2f}) / {p_s} = {enhance_cost:.2f}")
+    print(f"  強化成本 = {enhance_cost:.2f} {'(活動：100%成功)' if event_active and start == 15 else ''}")
     print(f"  購買成本 = {buy_cost:.2f}")
     print(f"  選擇：{'強化' if enhance_cost < buy_cost else '購買'}")
     return min(enhance_cost, buy_cost)
 
-# 計算所有單步成本
-def calc_all_step_costs():
+def calc_all_step_costs(event_active=False):
     costs = {}
     optimal_costs = {}
     print("\n計算單步成本過程：")
     for star in range(15, 20):
-        costs[star] = calc_single_step_cost(star, optimal_costs)
+        costs[star] = calc_single_step_cost(star, optimal_costs, event_active)
         optimal_costs[star] = costs[star]
     return costs
 
-# 主計算邏輯（動態規劃）
-step_costs = calc_all_step_costs()
+step_costs = calc_all_step_costs(event_active)
 optimal_costs = {}
 
-# 1到15的起點
 print("\n計算1到15的最優起始星卷：")
 optimal_costs[15] = (scroll_costs[15], 15)
 print(f"直接購買15星：總成本 = {scroll_costs[15]:.2f}")
 
-# 從16到20逐步計算
 for target in range(16, 21):
     print(f"\n計算1到{target}的最優起始星卷：")
     prev_cost, prev_start = optimal_costs[target - 1]
@@ -75,10 +80,8 @@ for target in range(16, 21):
     print(f"    前一階段成本 = {prev_cost:.2f}")
     print(f"    這一步成本 ({target-1} 到 {target}) = {step_costs[target-1]:.2f}")
     print(f"    總成本 = {prev_cost:.2f} + {step_costs[target-1]:.2f} = {total_from_prev:.2f}")
-    
     direct_buy_cost = scroll_costs[target]
     print(f"  直接購買 {target} 星：總成本 = {direct_buy_cost:.2f}")
-    
     if total_from_prev < direct_buy_cost:
         best_cost = total_from_prev
         best_start = prev_start
@@ -87,15 +90,13 @@ for target in range(16, 21):
         best_cost = direct_buy_cost
         best_start = target
         print(f"  選擇直接購買 {target} 星，成本 = {best_cost:.2f}")
-    
     optimal_costs[target] = (best_cost, best_start)
 
 print("\n從1星到各階段的最優成本與起始星卷：")
 for target, (cost, start) in optimal_costs.items():
     print(f"1星到{target}星：總成本 = {cost:.2f} 楓點，起始購買星力{start}強化卷")
 
-# 模擬（修正為期望成本一致）
-def simulate_upgrade(target=20, simulations=100000):
+def simulate_upgrade(target=20, simulations=100000, event_active=False):
     total_costs = []
     sample_path = None
     sample_cost = None
@@ -113,21 +114,23 @@ def simulate_upgrade(target=20, simulations=100000):
             enhance_cost = step_costs[current_star]
             buy_cost = scroll_costs[current_star + 1]
             
+            # 直接使用 step_costs 的選擇結果
             if enhance_cost < buy_cost:
-                total_cost += upgrade_cost
+                current_upgrade_cost = event_upgrade_cost if event_active and current_star == 15 else base_upgrade_cost
+                total_cost += current_upgrade_cost
                 outcome = random.random()
                 p_s = probabilities[current_star]["success"]
-                p_d = probabilities[start]["drop"]
-                p_h = probabilities[start]["hold"]
+                p_d = probabilities[current_star]["drop"]
+                p_h = probabilities[current_star]["hold"]
                 
                 if outcome < p_s:
-                    path.append(f"{current_star}升{current_star+1} 成功 (成本: 50 楓點)")
+                    path.append(f"{current_star}升{current_star+1} 成功 (成本: {current_upgrade_cost} 楓點)")
                     current_star += 1
                 elif outcome < p_s + p_d:
-                    path.append(f"{current_star}升{current_star+1} 失敗，下滑至{current_star-1} (成本: 50 楓點)")
+                    path.append(f"{current_star}升{current_star+1} 失敗，下滑至{current_star-1} (成本: {current_upgrade_cost} 楓點)")
                     current_star -= 1
                 else:
-                    path.append(f"{current_star}升{current_star+1} 失敗，維持 (成本: 50 楓點)")
+                    path.append(f"{current_star}升{current_star+1} 失敗，維持 (成本: {current_upgrade_cost} 楓點)")
             else:
                 total_cost += buy_cost
                 path.append(f"直接購買星力{current_star+1}強化卷 (成本: {buy_cost:.2f} 楓點)")
@@ -145,4 +148,4 @@ def simulate_upgrade(target=20, simulations=100000):
         print(step)
     print(f"總成本 = {sample_cost:.2f} 楓點")
 
-simulate_upgrade()
+simulate_upgrade(event_active=event_active)
