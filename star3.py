@@ -134,7 +134,7 @@ protect_options = [None, 15, 16, 17, 18, 19]
 drop_options = [False, True]
 buyback_17_to_16_options = [False, True]
 
-# 基本策略：下降低於起始星數就買回
+# 基本策略：含下降低於起始星數就買回
 for start_star in [15, 16, 17, 18, 19]:
     for protect_start in protect_options:
         for buy_back_below_start in drop_options:
