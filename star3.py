@@ -198,14 +198,14 @@ for start_star in [15, 16, 17, 18, 19]:
             print(f"模擬路徑已寫入檔案：{log_file}")
 
 # 直接買20星
-print(f"\n模擬策略：起始買20星卷，若破壞後買20星卷（無防破壞）")
+print(f"\n模擬策略：起始買20星卷")
 avg_cost = scroll_costs[20]
 avg_destroys = 0
 percentiles = {'10%': avg_cost, '25%': avg_cost, '50%': avg_cost, '75%': avg_cost, '90%': avg_cost}
 results["20_protect_none_buyback_none"] = (avg_cost, avg_destroys, percentiles, "log_start_20.txt")
 log_file = "log_start_20.txt"
 with open(log_file, 'w', encoding='utf-8') as f:
-    f.write("模擬策略：起始買20星卷，若破壞後買20星卷（無防破壞）\n\n")
+    f.write("模擬策略：起始買20星卷\n\n")
     f.write("單次模擬路徑與總成本：\n")
     f.write(f"初始購買星力20強化卷 (成本: {scroll_costs[20]:.2f} 楓點, 目前總成本: {scroll_costs[20]:.2f})\n")
     f.write(f"總成本 = {scroll_costs[20]:.2f} 楓點，破壞次數 = 0 次\n")
@@ -234,8 +234,8 @@ for strategy_key, (avg_cost, avg_destroys, percentiles, log_file) in sorted(resu
     protect_part = rest[0]
     buy_back_part = rest[1]
     desc = f"起始買{start_star}星卷，若破壞後買{start_star}星卷" + \
-           (f"，從{protect_part}星開始防破壞" if protect_part != 'none' else "（無防破壞）") + \
-           (f"，下降到{buy_back_part}星買回{start_star}星" if buy_back_part != 'none' else "")
+           (f"，下降到{buy_back_part}星買回{start_star}星" if buy_back_part != 'none' else "") + \
+           (f"，從{protect_part}星開始防破壞" if protect_part != 'none' else "（無防破壞）")
     count += 1
     print(f"{count}. {desc}")
 
