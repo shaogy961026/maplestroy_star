@@ -63,8 +63,8 @@ def simulate_from_start(start_star, restart_star, protect_start=None, buy_back_t
     
     # 策略描述
     strategy_desc = f"模擬策略：起始買{start_star}星卷，若破壞後買{restart_star}星卷" + \
-                    (f"，從{protect_start}星開始使用防破壞" if protect_start is not None else "（無防破壞）") + \
-                    (f"，下降到{buy_back_threshold}星買回{start_star}星" if buy_back_threshold is not None else "")
+                    (f"，下降到{buy_back_threshold}星買回{start_star}星" if buy_back_threshold is not None else "") + \
+                    (f"，從{protect_start}星開始防破壞" if protect_start is not None else "（無防破壞）")
     with open(log_file, 'w', encoding='utf-8') as f:
         f.write(f"{strategy_desc}\n\n")
     
@@ -189,8 +189,8 @@ for start_star in [15, 16, 17, 18, 19]:
                 continue
             
             print(f"\n模擬策略：起始買{start_star}星卷，若破壞後買{start_star}星卷" + 
-                  (f"，從{protect_start}星開始防破壞" if protect_start is not None else "（無防破壞）") + 
-                  (f"，下降到{buy_back_threshold}星買回{start_star}星" if buy_back_threshold is not None else ""))
+                  (f"，下降到{buy_back_threshold}星買回{start_star}星" if buy_back_threshold is not None else "") + 
+                  (f"，從{protect_start}星開始防破壞" if protect_start is not None else "（無防破壞）"))
             avg_cost, avg_destroys, percentiles, log_file = simulate_from_start(start_star, start_star, protect_start, buy_back_threshold, target, simulations)
             results[strategy_key] = (avg_cost, avg_destroys, percentiles, log_file)
             print(f"平均成本 = {avg_cost:.2f} 楓點")
@@ -249,8 +249,8 @@ for strategy_key, (avg_cost, avg_destroys, percentiles, log_file) in top_strateg
     protect_part = rest[0]
     buy_back_part = rest[1]
     desc = f"起始買{start_star}星卷，若破壞後買{start_star}星卷" + \
-           (f"，從{protect_part}星開始防破壞" if protect_part != 'none' else "（無防破壞）") + \
-           (f"，下降到{buy_back_part}星買回{start_star}星" if buy_back_part != 'none' else "")
+           (f"，下降到{buy_back_part}星買回{start_star}星" if buy_back_part != 'none' else "") + \
+           (f"，從{protect_part}星開始防破壞" if protect_part != 'none' else "（無防破壞）")
     print(f"最佳策略：{desc}")
     print(f"平均成本 = {avg_cost:.2f} 楓點")
     print(f"平均破壞次數 = {avg_destroys:.2f} 次")
