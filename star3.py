@@ -234,6 +234,43 @@ if destroy_non_zero:
 print(destroy_str)
 print(f"模擬路徑已寫入檔案：{log_file}")
 
+# 新增三個特殊策略（17、18、19）
+print(f"\n模擬策略：起始買17星卷，若破壞後買17星卷，僅在19星及19掉18時防破壞")
+avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file = simulate_from_start(17, 17, special_protect=True)
+results["17_protect_special_buyback_none"] = (avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file)
+cost_str = f"平均成本 {avg_cost:.2f} 楓點 | 成本分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in percentiles.items()])
+print(cost_str)
+destroy_non_zero = any(v > 0 for v in destroy_percentiles.values())
+destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"
+if destroy_non_zero:
+    destroy_str += " | 破壞次數分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in destroy_percentiles.items()])
+print(destroy_str)
+print(f"模擬路徑已寫入檔案：{log_file}")
+
+print(f"\n模擬策略：起始買18星卷，若破壞後買18星卷，僅在19星及19掉18時防破壞")
+avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file = simulate_from_start(18, 18, special_protect=True)
+results["18_protect_special_buyback_none"] = (avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file)
+cost_str = f"平均成本 {avg_cost:.2f} 楓點 | 成本分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in percentiles.items()])
+print(cost_str)
+destroy_non_zero = any(v > 0 for v in destroy_percentiles.values())
+destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"
+if destroy_non_zero:
+    destroy_str += " | 破壞次數分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in destroy_percentiles.items()])
+print(destroy_str)
+print(f"模擬路徑已寫入檔案：{log_file}")
+
+print(f"\n模擬策略：起始買19星卷，若破壞後買19星卷，僅在19星及19掉18時防破壞")
+avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file = simulate_from_start(19, 19, special_protect=True)
+results["19_protect_special_buyback_none"] = (avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file)
+cost_str = f"平均成本 {avg_cost:.2f} 楓點 | 成本分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in percentiles.items()])
+print(cost_str)
+destroy_non_zero = any(v > 0 for v in destroy_percentiles.values())
+destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"
+if destroy_non_zero:
+    destroy_str += " | 破壞次數分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in destroy_percentiles.items()])
+print(destroy_str)
+print(f"模擬路徑已寫入檔案：{log_file}")
+
 # 直接買20星
 print(f"\n模擬策略：起始買20星卷")
 avg_cost = scroll_costs[20]
