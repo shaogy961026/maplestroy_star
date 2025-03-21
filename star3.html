@@ -17,15 +17,15 @@
     
     <div class="input-section">
         <h2>輸入參數</h2>
-        <label>星卷價格（楓幣）:</label><br>
-        <input type="number" id="scroll15" placeholder="15星價格"> 
-        <input type="number" id="scroll16" placeholder="16星價格"> 
-        <input type="number" id="scroll17" placeholder="17星價格"> 
-        <input type="number" id="scroll18" placeholder="18星價格"> 
-        <input type="number" id="scroll19" placeholder="19星價格"> 
+        <label>星卷價格（億楓幣）:</label><br>
+        <input type="number" id="scroll15" placeholder="15星價格"> <br>
+        <input type="number" id="scroll16" placeholder="16星價格"> <br>
+        <input type="number" id="scroll17" placeholder="17星價格"> <br>
+        <input type="number" id="scroll18" placeholder="18星價格"> <br>
+        <input type="number" id="scroll19" placeholder="19星價格"> <br>
         <input type="number" id="scroll20" placeholder="20星價格"><br><br>
         
-        <label>裝備補償成本（楓幣）:</label>
+        <label>裝備補償成本（億楓幣）:</label>
         <input type="number" id="equipCost" placeholder="裝備補償成本"><br><br>
         
         <label>楓幣兌換比例（1億楓幣 = X楓點）:</label>
@@ -43,6 +43,19 @@
     <div id="results" class="results"></div>
 
     <script>
+        function getMedian(arr) {
+            arr = arr.sort((a, b) => a - b);
+            let median;
+                if (arr.length % 2 === 0) {
+                // 數目為偶數
+                    median = (arr[arr.length / 2] + arr[arr.length / 2 - 1]) / 2;
+                } else {
+                // 數目為奇數
+                    median = arr[(arr.length - 1) / 2];
+                }
+                return median;
+            }
+
         function getProbabilities(eventActive) {
             const baseProbabilities = {
                 15: { success: 0.3000, destroy: 0.1050, drop: 0.0000, hold: 0.5950 },
@@ -116,24 +129,31 @@
                 totalCosts.push(totalCost);
                 totalDestroys.push(destroyCount);
             }
-            
+
+            totalCosts.sort(function(a, b) {return a - b;});
+            const pr10 = totalCosts[totalCosts.length/ 10]
+            const pr25 = totalCosts[totalCosts.length/ 4]
+            const pr75 = totalCosts[totalCosts.length/ 4 * 3]
+            const pr90 = totalCosts[totalCosts.length/10 * 9]
+            const median = getMedian(totalCosts);
             const avgCost = totalCosts.reduce((a, b) => a + b, 0) / simulations;
             const avgDestroys = totalDestroys.reduce((a, b) => a + b, 0) / simulations;
-            return { avgCost, avgDestroys, path };
+            return { avgCost, avgDestroys, path, median, pr10, pr25, pr75, pr90};
         }
 
         function runSimulation() {
+            const e = 100000000
             // 獲取輸入值
             const scrollPrices = {
-                15: parseFloat(document.getElementById("scroll15").value) || 81555555,
-                16: parseFloat(document.getElementById("scroll16").value) || 244444444,
-                17: parseFloat(document.getElementById("scroll17").value) || 2396666666,
-                18: parseFloat(document.getElementById("scroll18").value) || 5466666666,
-                19: parseFloat(document.getElementById("scroll19").value) || 17776888888,
-                20: parseFloat(document.getElementById("scroll20").value) || 48888888888
+                15: parseFloat(document.getElementById("scroll15").value) * e || 81555555,
+                16: parseFloat(document.getElementById("scroll16").value) * e || 244444444,
+                17: parseFloat(document.getElementById("scroll17").value) * e || 2396666666,
+                18: parseFloat(document.getElementById("scroll18").value) * e || 5466666666,
+                19: parseFloat(document.getElementById("scroll19").value) * e || 17776888888,
+                20: parseFloat(document.getElementById("scroll20").value) * e || 48888888888
             };
             const pointsPerBillion = parseFloat(document.getElementById("pointsPerBillion").value) || 6;
-            const equipCompensationCostBase = parseFloat(document.getElementById("equipCost").value) || 600000000;
+            const equipCompensationCostBase = parseFloat(document.getElementById("equipCost").value) * e || 600000000;
             const simulations = parseInt(document.getElementById("simulations").value) || 100000;
             const eventActive = document.getElementById("eventActive").checked;
             
@@ -153,13 +173,13 @@
             output += `活動狀態：${eventActive ? '啟用' : '未啟用'}（15星強化成功率100%）\n`;
             output += "星卷價格（楓幣）：\n";
             for (let star in scrollPrices) {
-                output += `${star}星：${scrollPrices[star].toLocaleString()} 楓幣\n`;
+                output += `${star}星：${scrollCosts[star].toFixed(2)} 楓點\t ${(scrollPrices[star]/100000000).toLocaleString()} 億楓幣\n`;
             }
             output += "\n楓點與楓幣換算：\n";
             output += `換算比例：1億楓幣 = ${pointsPerBillion} 楓點\n`;
-            output += "\n星卷價格（轉換後，楓點）：\n";
+<!--            output += "\n星卷價格（轉換後，楓點）：\n";-->
             for (let star in scrollCosts) {
-                output += `${star}星：${scrollCosts[star].toFixed(2)} 楓點\n`;
+<!--                output += `${star}星：${scrollCosts[star].toFixed(2)} 楓點\n`;-->
             }
             output += `\n普通強化成本：${upgradeCost} 楓點（不防爆設定）\n`;
             output += `防破壞強化成本：${protectCost} 楓點（破壞改為維持）\n`;
@@ -175,14 +195,14 @@
             for (let startStar of [15, 16, 17, 18, 19]) {
                 for (let protectStart of protectOptions) {
                     for (let buyBackBelowStart of dropOptions) {
-                        output += `\n模擬策略：起始買${startStar}星卷，破壞後買${startStar}星卷` +
-                            (protectStart !== null ? `，從${protectStart}星開始防破壞` : "（無防破壞）") +
-                            (buyBackBelowStart ? `，下降低於${startStar}星買回` : "，下降時繼續強化");
-                        const { avgCost, avgDestroys, path } = simulateFromStart(startStar, startStar, protectStart, buyBackBelowStart, false, target, simulations, scrollCosts, equipCompensationCost, upgradeCost, protectCost, probabilities);
+<!--                        output += `\n模擬策略：起始買${startStar}星卷，破壞後買${startStar}星卷` +-->
+<!--                            (protectStart !== null ? `，從${protectStart}星開始防破壞` : "（無防破壞）") +-->
+<!--                            (buyBackBelowStart ? `，下降低於${startStar}星買回` : "，下降時繼續強化");-->
+                        const { avgCost, avgDestroys, path, median, pr10, pr25, pr75, pr90} = simulateFromStart(startStar, startStar, protectStart, buyBackBelowStart, false, target, simulations, scrollCosts, equipCompensationCost, upgradeCost, protectCost, probabilities);
                         const strategyKey = `${startStar}_protect_${protectStart === null ? 'none' : protectStart}_drop_${buyBackBelowStart ? 'buyback_below' : 'continue'}_buyback1716_false`;
-                        results[strategyKey] = { avgCost, avgDestroys };
-                        output += `\n平均成本 = ${avgCost.toFixed(2)} 楓點\n平均破壞次數 = ${avgDestroys.toFixed(2)} 次\n`;
-                        output += `模擬路徑：\n${path.join('\n')}\n`;
+                        results[strategyKey] = { avgCost, avgDestroys, median, pr10, pr25, pr75, pr90};
+<!--                        output += `\n平均成本 = ${avgCost.toFixed(2)} 楓點\n平均破壞次數 = ${avgDestroys.toFixed(2)} 次 \n  前10% = ${pr10.toFixed(2)} \n  前25% = ${pr25.toFixed(2)} \n  中位數 = ${median.toFixed(2)} \n  後75% = ${pr75.toFixed(2)} \n  後90% = ${pr90.toFixed(2)} \n`;-->
+<!--                        output += `模擬路徑：\n${path.join('\n')}\n`;-->
                     }
                 }
             }
@@ -190,27 +210,27 @@
             for (let startStar of [17, 18, 19]) {
                 for (let protectStart of [16, 17, 18, 19]) {
                     for (let buyBackBelowStart of dropOptions) {
-                        output += `\n模擬策略：起始買${startStar}星卷，破壞後買${startStar}星卷，從${protectStart}星開始防破壞` +
-                            (buyBackBelowStart ? `，下降低於${startStar}星買回` : "") +
-                            `，17降16買回${startStar}星`;
-                        const { avgCost, avgDestroys, path } = simulateFromStart(startStar, startStar, protectStart, buyBackBelowStart, true, target, simulations, scrollCosts, equipCompensationCost, upgradeCost, protectCost, probabilities);
+<!--                        output += `\n模擬策略：起始買${startStar}星卷，破壞後買${startStar}星卷，從${protectStart}星開始防破壞` +-->
+<!--                            (buyBackBelowStart ? `，下降低於${startStar}星買回` : "") +-->
+<!--                            `，17降16買回${startStar}星`;-->
+                        const { avgCost, avgDestroys, path, median, pr10, pr25, pr75, pr90} = simulateFromStart(startStar, startStar, protectStart, buyBackBelowStart, true, target, simulations, scrollCosts, equipCompensationCost, upgradeCost, protectCost, probabilities);
                         const strategyKey = `${startStar}_protect_${protectStart}_drop_${buyBackBelowStart ? 'buyback_below' : 'continue'}_buyback1716_true`;
-                        results[strategyKey] = { avgCost, avgDestroys };
-                        output += `\n平均成本 = ${avgCost.toFixed(2)} 楓點\n平均破壞次數 = ${avgDestroys.toFixed(2)} 次\n`;
-                        output += `模擬路徑：\n${path.join('\n')}\n`;
+                        results[strategyKey] = { avgCost, avgDestroys, median, pr10, pr25, pr75, pr90};
+<!--                        output += `\n平均成本 = ${avgCost.toFixed(2)} 楓點\n平均破壞次數 = ${avgDestroys.toFixed(2)} 次\n`;-->
+<!--                        output += `模擬路徑：\n${path.join('\n')}\n`;-->
                     }
                 }
             }
 
-            output += `\n模擬策略：起始買20星卷（無破壞）\n`;
+<!--            output += `\n模擬策略：起始買20星卷（無破壞）\n`;-->
             const avgCost20 = scrollCosts[20];
             const avgDestroys20 = 0;
             results["20_protect_none_drop_continue_buyback1716_false"] = { avgCost: avgCost20, avgDestroys: avgDestroys20 };
-            output += `平均成本 = ${avgCost20.toFixed(2)} 楓點\n平均破壞次數 = ${avgDestroys20.toFixed(2)} 次\n`;
-            output += `模擬路徑：\n初始購買星力20強化卷 (成本: ${scrollCosts[20].toFixed(2)} 楓點)\n`;
+<!--            output += `平均成本 = ${avgCost20.toFixed(2)} 楓點\n平均破壞次數 = ${avgDestroys20.toFixed(2)} 次\n`;-->
+<!--            output += `模擬路徑：\n初始購買星力20強化卷 (成本: ${scrollCosts[20].toFixed(2)} 楓點)\n`;-->
 
             // 整理所有模擬情境
-            output += "\n=== 所有模擬情境（共85種） ===\n";
+<!--            output += "\n=== 所有模擬情境（共85種） ===\n";-->
             const sortedResults = Object.entries(results).sort((a, b) => a[1].avgCost - b[1].avgCost);
             for (let [strategyKey, { avgCost, avgDestroys }] of sortedResults) {
                 const parts = strategyKey.split('_protect_');
@@ -224,28 +244,40 @@
                     (protectPart !== 'none' ? `，從${protectPart}星開始防破壞` : "（無防破壞）") +
                     (dropPart === 'buyback_below' ? `，下降低於${startStar}星買回` : "，下降時繼續強化") +
                     (buyback1716Part === 'true' ? `，17降16買回${startStar}星` : "");
-                output += `${desc}：平均成本 = ${avgCost.toFixed(2)} 楓點，平均破壞次數 = ${avgDestroys.toFixed(2)} 次\n`;
+<!--                output += `${desc}：平均成本 = ${avgCost.toFixed(2)} 楓點，平均破壞次數 = ${avgDestroys.toFixed(2)} 次\n`;-->
             }
 
             // 最佳策略
-            output += "\n=== 策略比較 ===\n";
-            const bestStrategyKey = sortedResults[0][0];
-            const bestCost = sortedResults[0][1].avgCost;
-            const bestDestroys = sortedResults[0][1].avgDestroys;
-            const bestParts = bestStrategyKey.split('_protect_');
-            const bestStartStar = bestParts[0];
-            const bestRest = bestParts[1].split('_drop_');
-            const bestProtectPart = bestRest[0];
-            const bestDropRest = bestRest[1].split('_buyback1716_');
-            const bestDropPart = bestDropRest[0];
-            const bestBuyback1716Part = bestDropRest[1];
-            let bestStrategyDesc = `起始買${bestStartStar}星卷，破壞後買${bestStartStar}星卷` +
-                (bestProtectPart === 'none' ? "（無防破壞）" : `，從${bestProtectPart}星開始防破壞`) +
-                (bestDropPart === 'buyback_below' ? `，下降低於${bestStartStar}星買回` : "，下降時繼續強化") +
-                (bestBuyback1716Part === 'true' ? `，17降16買回${bestStartStar}星` : "");
-            output += `最佳策略：${bestStrategyDesc}\n`;
-            output += `平均成本 = ${bestCost.toFixed(2)} 楓點\n`;
-            output += `平均破壞次數 = ${bestDestroys.toFixed(2)} 次\n`;
+            output += "\n=== 前三佳策略 ===\n";
+            for (let i of [1,2,3]){
+                const bestStrategyKey = sortedResults[i][0];
+                const bestCost = sortedResults[i][1].avgCost;
+                const bestDestroys = sortedResults[i][1].avgDestroys;
+                const pr10 = sortedResults[i][1].pr10;
+                const pr25 = sortedResults[i][1].pr25;
+                const median = sortedResults[i][1].median;
+                const pr75 = sortedResults[i][1].pr75;
+                const pr90 = sortedResults[i][1].pr90;
+                const bestParts = bestStrategyKey.split('_protect_');
+                const bestStartStar = bestParts[0];
+                const bestRest = bestParts[1].split('_drop_');
+                const bestProtectPart = bestRest[0];
+                const bestDropRest = bestRest[1].split('_buyback1716_');
+                const bestDropPart = bestDropRest[0];
+                const bestBuyback1716Part = bestDropRest[1];
+                let bestStrategyDesc = `起始買${bestStartStar}星卷，破壞後買${bestStartStar}星卷` +
+                    (bestProtectPart === 'none' ? "（無防破壞）" : `，從${bestProtectPart}星開始防破壞`) +
+                    (bestDropPart === 'buyback_below' ? `，下降低於${bestStartStar}星買回` : "，下降時繼續強化") +
+                    (bestBuyback1716Part === 'true' ? `，17降16買回${bestStartStar}星` : "");
+                output += `最佳策略：${bestStrategyDesc}\n`;
+                output += `平均成本 = ${bestCost.toFixed(2)} 楓點\n`;
+                output += `平均破壞次數 = ${bestDestroys.toFixed(2)} 次\n`;
+                output += `  前10% = ${pr10.toFixed(2)} 楓點\n`;
+                output += `  前25% = ${pr25.toFixed(2)} 楓點\n`;
+                output += `  中位數 = ${median.toFixed(2)} 楓點\n`;
+                output += `  後75% = ${pr75.toFixed(2)} 楓點\n`;
+                output += `  後90% = ${pr90.toFixed(2)} 楓點\n\n`;
+            }
 
             document.getElementById("results").innerText = output;
         }
