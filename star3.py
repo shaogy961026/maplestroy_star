@@ -28,7 +28,7 @@ scroll_prices = {
 # 基本設定
 points_per_billion = 6
 scroll_costs = {star: price * points_per_billion / 10**8 for star, price in scroll_prices.items()}
-equip_compensation_cost = 3000000000 * points_per_billion / 10**8
+equip_compensation_cost = 60000000 * points_per_billion / 10**8
 upgrade_cost = 9
 protect_cost = 50
 event_active = True
@@ -163,13 +163,20 @@ def simulate_from_start(start_star, restart_star, protect_start=None, buy_back_t
     avg_cost = sum(total_costs) / simulations
     avg_destroys = sum(total_destroys) / simulations
     percentiles = {
-        '10%': np.percentile(all_costs, 10),
-        '25%': np.percentile(all_costs, 25),
-        '50%': np.percentile(all_costs, 50),
-        '75%': np.percentile(all_costs, 75),
-        '90%': np.percentile(all_costs, 90)
+        'P10': np.percentile(all_costs, 10),
+        'P25': np.percentile(all_costs, 25),
+        'P50': np.percentile(all_costs, 50),
+        'P75': np.percentile(all_costs, 75),
+        'P90': np.percentile(all_costs, 90)
     }
-    return avg_cost, avg_destroys, percentiles, log_file
+    destroy_percentiles = {
+        'P10': np.percentile(total_destroys, 10),
+        'P25': np.percentile(total_destroys, 25),
+        'P50': np.percentile(total_destroys, 50),
+        'P75': np.percentile(total_destroys, 75),
+        'P90': np.percentile(total_destroys, 90)
+    }
+    return avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file
 
 # 模擬所有策略
 results = {}
@@ -178,7 +185,6 @@ protect_options_base = [None, 15, 16, 17, 18, 19]
 for start_star in [15, 16, 17, 18, 19]:
     buy_back_options = [None] + list(range(15, start_star))
     for buy_back_threshold in buy_back_options:
-        # 動態調整 protect_options：若有 buy_back_threshold，只保留大於它的 protect_start
         if buy_back_threshold is None:
             protect_options = protect_options_base
         else:
@@ -191,26 +197,38 @@ for start_star in [15, 16, 17, 18, 19]:
             print(f"\n模擬策略：起始買{start_star}星卷，若破壞後買{start_star}星卷" + 
                   (f"，下降到{buy_back_threshold}星買回{start_star}星" if buy_back_threshold is not None else "") + 
                   (f"，從{protect_start}星開始防破壞" if protect_start is not None else "（無防破壞）"))
-            avg_cost, avg_destroys, percentiles, log_file = simulate_from_start(start_star, start_star, protect_start, buy_back_threshold, target, simulations)
-            results[strategy_key] = (avg_cost, avg_destroys, percentiles, log_file)
-            print(f"平均成本 = {avg_cost:.2f} 楓點")
-            print(f"平均破壞次數 = {avg_destroys:.2f} 次")
+            avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file = simulate_from_start(start_star, start_star, protect_start, buy_back_threshold, target, simulations)
+            results[strategy_key] = (avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file)
+            
+            # 調整顯示格式
+            cost_str = f"平均成本 {avg_cost:.2f} 楓點 | 成本分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in percentiles.items()])
+            print(cost_str)
+            destroy_non_zero = {k: v for k, v in destroy_percentiles.items() if v > 0}
+            destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"
+            if destroy_non_zero:
+                destroy_str += " | 破壞次數分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in destroy_percentiles.items()])  # 顯示完整 P10-P90
+            print(destroy_str)
             print(f"模擬路徑已寫入檔案：{log_file}")
 
 # 直接買20星
 print(f"\n模擬策略：起始買20星卷")
 avg_cost = scroll_costs[20]
 avg_destroys = 0
-percentiles = {'10%': avg_cost, '25%': avg_cost, '50%': avg_cost, '75%': avg_cost, '90%': avg_cost}
-results["20_protect_none_buyback_none"] = (avg_cost, avg_destroys, percentiles, "log_start_20.txt")
+percentiles = {'P10': avg_cost, 'P25': avg_cost, 'P50': avg_cost, 'P75': avg_cost, 'P90': avg_cost}
+destroy_percentiles = {'P10': 0, 'P25': 0, 'P50': 0, 'P75': 0, 'P90': 0}
+results["20_protect_none_buyback_none"] = (avg_cost, avg_destroys, percentiles, destroy_percentiles, "log_start_20.txt")
 log_file = "log_start_20.txt"
 with open(log_file, 'w', encoding='utf-8') as f:
     f.write("模擬策略：起始買20星卷\n\n")
     f.write("單次模擬路徑與總成本：\n")
     f.write(f"初始購買星力20強化卷 (成本: {scroll_costs[20]:.2f} 楓點, 目前總成本: {scroll_costs[20]:.2f})\n")
     f.write(f"總成本 = {scroll_costs[20]:.2f} 楓點，破壞次數 = 0 次\n")
-print(f"平均成本 = {avg_cost:.2f} 楓點")
-print(f"平均破壞次數 = {avg_destroys:.2f} 次")
+
+# 調整顯示格式
+cost_str = f"平均成本 {avg_cost:.2f} 楓點 | 成本分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in percentiles.items()])
+print(cost_str)
+destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"  # 因為全為0，不顯示分位數
+print(destroy_str)
 print(f"模擬路徑已寫入檔案：{log_file}")
 
 # 整理所有模擬情境（按層次排序）
@@ -227,7 +245,7 @@ def sort_key(item):
     return (start_star, protect_value, buy_back_value, item[1][0])
 
 count = 0
-for strategy_key, (avg_cost, avg_destroys, percentiles, log_file) in sorted(results.items(), key=sort_key):
+for strategy_key, (avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file) in sorted(results.items(), key=sort_key):
     parts = strategy_key.split('_protect_')
     start_star = parts[0]
     rest = parts[1].split('_buyback_')
@@ -242,7 +260,8 @@ for strategy_key, (avg_cost, avg_destroys, percentiles, log_file) in sorted(resu
 # 前三佳策略
 print("\n=== 前三佳策略 ===")
 top_strategies = sorted(results.items(), key=lambda x: x[1][0])[:3]
-for strategy_key, (avg_cost, avg_destroys, percentiles, log_file) in top_strategies:
+strategy_labels = ["最佳策略", "次佳策略", "第三佳策略"]
+for i, (strategy_key, (avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file)) in enumerate(top_strategies):
     parts = strategy_key.split('_protect_')
     start_star = parts[0]
     rest = parts[1].split('_buyback_')
@@ -251,12 +270,13 @@ for strategy_key, (avg_cost, avg_destroys, percentiles, log_file) in top_strateg
     desc = f"起始買{start_star}星卷，若破壞後買{start_star}星卷" + \
            (f"，下降到{buy_back_part}星買回{start_star}星" if buy_back_part != 'none' else "") + \
            (f"，從{protect_part}星開始防破壞" if protect_part != 'none' else "（無防破壞）")
-    print(f"最佳策略：{desc}")
-    print(f"平均成本 = {avg_cost:.2f} 楓點")
-    print(f"平均破壞次數 = {avg_destroys:.2f} 次")
-    print(f"  前10% = {percentiles['10%']:.2f} 楓點")
-    print(f"  前25% = {percentiles['25%']:.2f} 楓點")
-    print(f"  中位數 = {percentiles['50%']:.2f} 楓點")
-    print(f"  後75% = {percentiles['75%']:.2f} 楓點")
-    print(f"  後90% = {percentiles['90%']:.2f} 楓點")
+    print(f"{strategy_labels[i]}：{desc}")
+    # 調整顯示格式
+    cost_str = f"平均成本 {avg_cost:.2f} 楓點 | 成本分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in percentiles.items()])
+    print(cost_str)
+    destroy_non_zero = any(v > 0 for v in destroy_percentiles.values())  # 檢查是否有非零值
+    destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"
+    if destroy_non_zero:
+        destroy_str += " | 破壞次數分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in destroy_percentiles.items()])  # 顯示完整 P10-P90
+    print(destroy_str)
     print()
