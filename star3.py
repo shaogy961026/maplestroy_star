@@ -28,13 +28,13 @@ scroll_prices = {
 # 基本設定
 points_per_billion = 6
 scroll_costs = {star: price * points_per_billion / 10**8 for star, price in scroll_prices.items()}
-equip_compensation_cost = 60000000 * points_per_billion / 10**8
+equip_compensation_cost = 3000000000 * points_per_billion / 10**8
 upgrade_cost = 9
 protect_cost = 50
 event_active = True
 probabilities = get_probabilities(event_active)
 target = 20
-simulations = 1
+simulations = 100000
 
 # 輸出初始條件
 print("=== 程式輸入條件 ===")
@@ -49,7 +49,7 @@ print("\n星卷價格（轉換後，楓點）：")
 for star, cost in scroll_costs.items():
     print(f"{star}星：{cost:.2f} 楓點")
 print(f"\n普通強化成本：{upgrade_cost} 楓點（不防爆設定）")
-print(f"防破壞強化成本：{protect_cost} 楓點（破壞改為維持）")
+print(f"防破壞強化成本：{protect_cost} 楓點（破壞改為掉星，15星維持）")
 print(f"裝備補償成本（破壞時）：{equip_compensation_cost:.2f} 楓點")
 print("成本已包含裝備破壞後拿裝備修復價格（楓幣楓點換算）")
 print(f"模擬次數：每個策略{simulations:,}次")
@@ -74,11 +74,22 @@ def simulate_from_start(start_star, restart_star, protect_start=None, buy_back_t
         destroy_count = 0
         current_star = start_star
         total_cost += scroll_costs[start_star]
+        consecutive_drops = 0  # 追蹤連續掉星次數
         
         path = [f"初始購買星力{start_star}強化卷 (成本: {scroll_costs[start_star]:.2f} 楓點, 目前總成本: {total_cost:.2f})"]
         
         while current_star < target:
             use_protect = protect_start is not None and current_star >= protect_start
+            # 連掉兩次後必定成功，且成本為 9
+            if consecutive_drops >= 2:
+                cost = upgrade_cost
+                total_cost += cost
+                if sim == 0:
+                    path.append(f"{current_star}升{current_star+1} 成功 [連掉補償] (成本: {cost} 楓點, 目前總成本: {total_cost:.2f})")
+                current_star += 1
+                consecutive_drops = 0
+                continue
+            
             cost = protect_cost if use_protect else upgrade_cost
             total_cost += cost
             
@@ -91,16 +102,34 @@ def simulate_from_start(start_star, restart_star, protect_start=None, buy_back_t
                 if sim == 0:
                     path.append(f"{current_star}升{current_star+1} 成功 (成本: {cost} 楓點{' [防破壞]' if use_protect else ''}, 目前總成本: {total_cost:.2f})")
                 current_star += 1
+                consecutive_drops = 0
             elif outcome < p_s + p_d:
                 if use_protect:
-                    if sim == 0:
-                        path.append(f"{current_star}升{current_star+1} 失敗，維持 (成本: {cost} 楓點 [防破壞], 目前總成本: {total_cost:.2f})")
+                    if current_star > 15:  # 防破壞時掉星（除了15星）
+                        next_star = current_star - 1
+                        buy_back = buy_back_threshold is not None and next_star <= buy_back_threshold
+                        if sim == 0:
+                            if buy_back:
+                                path.append(f"{current_star}升{current_star+1} 失敗，防破壞掉至{next_star}，買回{start_star}星 (成本: {cost} + {scroll_costs[start_star]:.2f} 楓點 [防破壞], 目前總成本: {total_cost:.2f})")
+                            else:
+                                path.append(f"{current_star}升{current_star+1} 失敗，防破壞掉至{next_star} (成本: {cost} 楓點 [防破壞], 目前總成本: {total_cost:.2f})")
+                        current_star = next_star
+                        consecutive_drops += 1
+                        if buy_back:
+                            total_cost += scroll_costs[start_star]
+                            current_star = start_star
+                            consecutive_drops = 0
+                    else:  # 15星維持
+                        if sim == 0:
+                            path.append(f"{current_star}升{current_star+1} 失敗，維持 (成本: {cost} 楓點 [防破壞], 目前總成本: {total_cost:.2f})")
+                        consecutive_drops = 0
                 else:
                     total_cost += equip_compensation_cost + scroll_costs[restart_star]
                     destroy_count += 1
                     if sim == 0:
                         path.append(f"{current_star}升{current_star+1} 破壞，回到12星，購買{restart_star}星 (成本: {cost} + {equip_compensation_cost:.2f} + {scroll_costs[restart_star]:.2f} 楓點, 目前總成本: {total_cost:.2f})")
                     current_star = restart_star
+                    consecutive_drops = 0
             elif outcome < p_s + p_d + p_drop:
                 next_star = current_star - 1  # 遵循機率表
                 buy_back = buy_back_threshold is not None and next_star <= buy_back_threshold
@@ -110,12 +139,15 @@ def simulate_from_start(start_star, restart_star, protect_start=None, buy_back_t
                     else:
                         path.append(f"{current_star}升{current_star+1} 失敗，下滑至{next_star} (成本: {cost} 楓點{' [防破壞]' if use_protect else ''}, 目前總成本: {total_cost:.2f})")
                 current_star = next_star
+                consecutive_drops += 1
                 if buy_back:
                     total_cost += scroll_costs[start_star]
                     current_star = start_star
+                    consecutive_drops = 0
             else:
                 if sim == 0:
                     path.append(f"{current_star}升{current_star+1} 失敗，維持 (成本: {cost} 楓點{' [防破壞]' if use_protect else ''}, 目前總成本: {total_cost:.2f})")
+                consecutive_drops = 0
         
         all_costs.append(total_cost)
         total_costs.append(total_cost)
@@ -188,7 +220,8 @@ def sort_key(item):
     buy_back_part = rest[1]
     buy_back_value = -1 if buy_back_part == 'none' else int(buy_back_part)
     return (start_star, protect_value, buy_back_value, item[1][0])
-count=0
+
+count = 0
 for strategy_key, (avg_cost, avg_destroys, percentiles, log_file) in sorted(results.items(), key=sort_key):
     parts = strategy_key.split('_protect_')
     start_star = parts[0]
@@ -198,7 +231,7 @@ for strategy_key, (avg_cost, avg_destroys, percentiles, log_file) in sorted(resu
     desc = f"起始買{start_star}星卷，若破壞後買{start_star}星卷" + \
            (f"，從{protect_part}星開始防破壞" if protect_part != 'none' else "（無防破壞）") + \
            (f"，下降到{buy_back_part}星買回{start_star}星" if buy_back_part != 'none' else "")
-    count+=1
+    count += 1
     print(f"{count}. {desc}")
 
 # 前三佳策略
