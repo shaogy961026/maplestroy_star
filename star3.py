@@ -28,7 +28,7 @@ scroll_prices = {
 # 基本設定
 points_per_billion = 6
 scroll_costs = {star: price * points_per_billion / 10**8 for star, price in scroll_prices.items()}
-equip_compensation_cost = 60000000 * points_per_billion / 10**8
+equip_compensation_cost = 3000000000 * points_per_billion / 10**8
 upgrade_cost = 9
 protect_cost = 50
 event_active = True
@@ -56,31 +56,31 @@ print(f"模擬次數：每個策略{simulations:,}次")
 print("=================\n")
 
 # 模擬函數
-def simulate_from_start(start_star, restart_star, protect_start=None, buy_back_threshold=None, target=target, simulations=simulations):
+def simulate_from_start(start_star, restart_star, protect_start=None, buy_back_threshold=None, special_protect=False, target=target, simulations=simulations):
     total_costs = []
     total_destroys = []
-    log_file = f"log_start_{start_star}{'_protect_' + str(protect_start) if protect_start is not None else ''}{'_buyback_' + str(buy_back_threshold) if buy_back_threshold is not None else ''}.txt"
+    log_file = f"log_start_{start_star}{'_protect_' + str(protect_start) if protect_start is not None else ''}{'_buyback_' + str(buy_back_threshold) if buy_back_threshold is not None else ''}{'_special' if special_protect else ''}.txt"
     
-    # 策略描述
     strategy_desc = f"模擬策略：起始買{start_star}星卷，若破壞後買{restart_star}星卷" + \
                     (f"，下降到{buy_back_threshold}星買回{start_star}星" if buy_back_threshold is not None else "") + \
-                    (f"，從{protect_start}星開始防破壞" if protect_start is not None else "（無防破壞）")
+                    (f"，從{protect_start}星開始防破壞" if protect_start is not None else "") + \
+                    (f"，僅在19星及19掉18時防破壞" if special_protect else "（無防破壞）")
     with open(log_file, 'w', encoding='utf-8') as f:
         f.write(f"{strategy_desc}\n\n")
     
-    all_costs = []  # 儲存每次模擬的總成本，用於分位數計算
+    all_costs = []
     for sim in range(simulations):
         total_cost = 0
         destroy_count = 0
         current_star = start_star
         total_cost += scroll_costs[start_star]
-        consecutive_drops = 0  # 追蹤連續掉星次數
+        consecutive_drops = 0
         
         path = [f"初始購買星力{start_star}強化卷 (成本: {scroll_costs[start_star]:.2f} 楓點, 目前總成本: {total_cost:.2f})"]
         
         while current_star < target:
-            use_protect = protect_start is not None and current_star >= protect_start
-            # 連掉兩次後必定成功，且成本為 9
+            use_protect = (special_protect and (current_star == 19 or (current_star == 18 and consecutive_drops > 0))) or \
+                          (protect_start is not None and current_star >= protect_start)
             if consecutive_drops >= 2:
                 cost = upgrade_cost
                 total_cost += cost
@@ -105,7 +105,7 @@ def simulate_from_start(start_star, restart_star, protect_start=None, buy_back_t
                 consecutive_drops = 0
             elif outcome < p_s + p_d:
                 if use_protect:
-                    if current_star > 15:  # 防破壞時掉星（除了15星）
+                    if current_star > 15:
                         next_star = current_star - 1
                         buy_back = buy_back_threshold is not None and next_star <= buy_back_threshold
                         if sim == 0:
@@ -119,7 +119,7 @@ def simulate_from_start(start_star, restart_star, protect_start=None, buy_back_t
                             total_cost += scroll_costs[start_star]
                             current_star = start_star
                             consecutive_drops = 0
-                    else:  # 15星維持
+                    else:
                         if sim == 0:
                             path.append(f"{current_star}升{current_star+1} 失敗，維持 (成本: {cost} 楓點 [防破壞], 目前總成本: {total_cost:.2f})")
                         consecutive_drops = 0
@@ -131,7 +131,7 @@ def simulate_from_start(start_star, restart_star, protect_start=None, buy_back_t
                     current_star = restart_star
                     consecutive_drops = 0
             elif outcome < p_s + p_d + p_drop:
-                next_star = current_star - 1  # 遵循機率表
+                next_star = current_star - 1
                 buy_back = buy_back_threshold is not None and next_star <= buy_back_threshold
                 if sim == 0:
                     if buy_back:
@@ -197,18 +197,42 @@ for start_star in [15, 16, 17, 18, 19]:
             print(f"\n模擬策略：起始買{start_star}星卷，若破壞後買{start_star}星卷" + 
                   (f"，下降到{buy_back_threshold}星買回{start_star}星" if buy_back_threshold is not None else "") + 
                   (f"，從{protect_start}星開始防破壞" if protect_start is not None else "（無防破壞）"))
-            avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file = simulate_from_start(start_star, start_star, protect_start, buy_back_threshold, target, simulations)
+            avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file = simulate_from_start(start_star, start_star, protect_start, buy_back_threshold)
             results[strategy_key] = (avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file)
             
-            # 調整顯示格式
             cost_str = f"平均成本 {avg_cost:.2f} 楓點 | 成本分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in percentiles.items()])
             print(cost_str)
-            destroy_non_zero = {k: v for k, v in destroy_percentiles.items() if v > 0}
+            destroy_non_zero = any(v > 0 for v in destroy_percentiles.values())
             destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"
             if destroy_non_zero:
-                destroy_str += " | 破壞次數分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in destroy_percentiles.items()])  # 顯示完整 P10-P90
+                destroy_str += " | 破壞次數分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in destroy_percentiles.items()])
             print(destroy_str)
             print(f"模擬路徑已寫入檔案：{log_file}")
+
+# 新增兩個特殊策略
+print(f"\n模擬策略：起始買15星卷，若破壞後買15星卷，僅在19星及19掉18時防破壞")
+avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file = simulate_from_start(15, 15, special_protect=True)
+results["15_protect_special_buyback_none"] = (avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file)
+cost_str = f"平均成本 {avg_cost:.2f} 楓點 | 成本分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in percentiles.items()])
+print(cost_str)
+destroy_non_zero = any(v > 0 for v in destroy_percentiles.values())
+destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"
+if destroy_non_zero:
+    destroy_str += " | 破壞次數分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in destroy_percentiles.items()])
+print(destroy_str)
+print(f"模擬路徑已寫入檔案：{log_file}")
+
+print(f"\n模擬策略：起始買16星卷，若破壞後買16星卷，僅在19星及19掉18時防破壞")
+avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file = simulate_from_start(16, 16, special_protect=True)
+results["16_protect_special_buyback_none"] = (avg_cost, avg_destroys, percentiles, destroy_percentiles, log_file)
+cost_str = f"平均成本 {avg_cost:.2f} 楓點 | 成本分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in percentiles.items()])
+print(cost_str)
+destroy_non_zero = any(v > 0 for v in destroy_percentiles.values())
+destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"
+if destroy_non_zero:
+    destroy_str += " | 破壞次數分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in destroy_percentiles.items()])
+print(destroy_str)
+print(f"模擬路徑已寫入檔案：{log_file}")
 
 # 直接買20星
 print(f"\n模擬策略：起始買20星卷")
@@ -224,10 +248,9 @@ with open(log_file, 'w', encoding='utf-8') as f:
     f.write(f"初始購買星力20強化卷 (成本: {scroll_costs[20]:.2f} 楓點, 目前總成本: {scroll_costs[20]:.2f})\n")
     f.write(f"總成本 = {scroll_costs[20]:.2f} 楓點，破壞次數 = 0 次\n")
 
-# 調整顯示格式
 cost_str = f"平均成本 {avg_cost:.2f} 楓點 | 成本分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in percentiles.items()])
 print(cost_str)
-destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"  # 因為全為0，不顯示分位數
+destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"
 print(destroy_str)
 print(f"模擬路徑已寫入檔案：{log_file}")
 
@@ -239,7 +262,7 @@ def sort_key(item):
     start_star = int(parts[0])
     rest = parts[1].split('_buyback_')
     protect_part = rest[0]
-    protect_value = -1 if protect_part == 'none' else int(protect_part)
+    protect_value = -1 if protect_part == 'none' else (100 if protect_part == 'special' else int(protect_part))
     buy_back_part = rest[1]
     buy_back_value = -1 if buy_back_part == 'none' else int(buy_back_part)
     return (start_star, protect_value, buy_back_value, item[1][0])
@@ -253,7 +276,8 @@ for strategy_key, (avg_cost, avg_destroys, percentiles, destroy_percentiles, log
     buy_back_part = rest[1]
     desc = f"起始買{start_star}星卷，若破壞後買{start_star}星卷" + \
            (f"，下降到{buy_back_part}星買回{start_star}星" if buy_back_part != 'none' else "") + \
-           (f"，從{protect_part}星開始防破壞" if protect_part != 'none' else "（無防破壞）")
+           (f"，從{protect_part}星開始防破壞" if protect_part not in ['none', 'special'] else "") + \
+           (f"，僅在19星及19掉18時防破壞" if protect_part == 'special' else "（無防破壞）" if protect_part == 'none' else "")
     count += 1
     print(f"{count}. {desc}")
 
@@ -269,14 +293,14 @@ for i, (strategy_key, (avg_cost, avg_destroys, percentiles, destroy_percentiles,
     buy_back_part = rest[1]
     desc = f"起始買{start_star}星卷，若破壞後買{start_star}星卷" + \
            (f"，下降到{buy_back_part}星買回{start_star}星" if buy_back_part != 'none' else "") + \
-           (f"，從{protect_part}星開始防破壞" if protect_part != 'none' else "（無防破壞）")
+           (f"，從{protect_part}星開始防破壞" if protect_part not in ['none', 'special'] else "") + \
+           (f"，僅在19星及19掉18時防破壞" if protect_part == 'special' else "（無防破壞）" if protect_part == 'none' else "")
     print(f"{strategy_labels[i]}：{desc}")
-    # 調整顯示格式
     cost_str = f"平均成本 {avg_cost:.2f} 楓點 | 成本分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in percentiles.items()])
     print(cost_str)
-    destroy_non_zero = any(v > 0 for v in destroy_percentiles.values())  # 檢查是否有非零值
+    destroy_non_zero = any(v > 0 for v in destroy_percentiles.values())
     destroy_str = f"平均破壞次數 {avg_destroys:.2f} 次"
     if destroy_non_zero:
-        destroy_str += " | 破壞次數分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in destroy_percentiles.items()])  # 顯示完整 P10-P90
+        destroy_str += " | 破壞次數分位數 " + ", ".join([f"{k}: {v:.2f}" for k, v in destroy_percentiles.items()])
     print(destroy_str)
     print()
