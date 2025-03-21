@@ -173,12 +173,17 @@ def simulate_from_start(start_star, restart_star, protect_start=None, buy_back_t
 
 # 模擬所有策略
 results = {}
-protect_options = [None, 15, 16, 17, 18, 19]
+protect_options_base = [None, 15, 16, 17, 18, 19]
 
 for start_star in [15, 16, 17, 18, 19]:
     buy_back_options = [None] + list(range(15, start_star))
-    for protect_start in protect_options:
-        for buy_back_threshold in buy_back_options:
+    for buy_back_threshold in buy_back_options:
+        # 動態調整 protect_options：若有 buy_back_threshold，只保留大於它的 protect_start
+        if buy_back_threshold is None:
+            protect_options = protect_options_base
+        else:
+            protect_options = [p for p in protect_options_base if p is None or p > buy_back_threshold]
+        for protect_start in protect_options:
             strategy_key = f"{start_star}_protect_{protect_start if protect_start is not None else 'none'}_buyback_{buy_back_threshold if buy_back_threshold is not None else 'none'}"
             if strategy_key in results:
                 continue
