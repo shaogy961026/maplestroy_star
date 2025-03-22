@@ -2,61 +2,101 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>星力強化模擬器</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
-        table { border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .input-section { margin-bottom: 20px; }
-        .results { white-space: pre-wrap; }
+        .input-group { margin-bottom: 10px; }
+        .input-group label { display: inline-block; width: 200px; }
+        .input-group input { width: 150px; }
+        #results, #log { margin-top: 20px; white-space: pre-wrap; }
+        textarea { width: 100%; height: 200px; }
+        button { margin-top: 10px; padding: 10px 20px; }
     </style>
 </head>
 <body>
     <h1>星力強化模擬器</h1>
     
-    <div class="input-section">
-        <h2>輸入參數</h2>
-        <label>星卷價格（億楓幣）:</label><br>
-        <input type="number" id="scroll15" placeholder="15星價格"> <br>
-        <input type="number" id="scroll16" placeholder="16星價格"> <br>
-        <input type="number" id="scroll17" placeholder="17星價格"> <br>
-        <input type="number" id="scroll18" placeholder="18星價格"> <br>
-        <input type="number" id="scroll19" placeholder="19星價格"> <br>
-        <input type="number" id="scroll20" placeholder="20星價格"><br><br>
-        
-        <label>裝備補償成本（億楓幣）:</label>
-        <input type="number" id="equipCost" placeholder="裝備補償成本"><br><br>
-        
-        <label>楓幣兌換比例（1億楓幣 = X楓點）:</label>
-        <input type="number" id="pointsPerBillion" placeholder="兌換比例"><br><br>
-        
-        <label>模擬次數:</label>
-        <input type="number" id="simulations" value="100000"><br><br>
-        
-        <label>活動狀態（15星100%成功）:</label>
-        <input type="checkbox" id="eventActive" checked><br><br>
-        
-        <button onclick="runSimulation()">執行模擬</button>
+    <!-- 輸入表單 -->
+    <h2>輸入參數</h2>
+    <div class="input-group">
+        <label>多少楓點 = 1億楓幣:</label>
+        <input type="number" id="pointsPerBillion" value="6" min="1" step="1">
     </div>
-    
-    <div id="results" class="results"></div>
+    <div class="input-group">
+        <label>裝備補償價格（楓幣）:</label>
+        <input type="number" id="equipCompensationMaple" value="3000000000" min="0" step="1" oninput="updateEquipCompensation()">
+        <label>或（幾億楓幣）:</label>
+        <input type="number" id="equipCompensationBillion" value="30" min="0" step="0.01" oninput="updateEquipCompensation()">
+    </div>
+    <div class="input-group">
+        <label>15星卷價格（楓幣）:</label>
+        <input type="number" id="scroll15Maple" value="81555555" min="0" step="1" oninput="updateScrollPrice(15)">
+        <label>或（幾億楓幣）:</label>
+        <input type="number" id="scroll15Billion" value="0.81555555" min="0" step="0.01" oninput="updateScrollPrice(15)">
+    </div>
+    <div class="input-group">
+        <label>16星卷價格（楓幣）:</label>
+        <input type="number" id="scroll16Maple" value="244444444" min="0" step="1" oninput="updateScrollPrice(16)">
+        <label>或（幾億楓幣）:</label>
+        <input type="number" id="scroll16Billion" value="2.44444444" min="0" step="0.01" oninput="updateScrollPrice(16)">
+    </div>
+    <div class="input-group">
+        <label>17星卷價格（楓幣）:</label>
+        <input type="number" id="scroll17Maple" value="2396666666" min="0" step="1" oninput="updateScrollPrice(17)">
+        <label>或（幾億楓幣）:</label>
+        <input type="number" id="scroll17Billion" value="23.96666666" min="0" step="0.01" oninput="updateScrollPrice(17)">
+    </div>
+    <div class="input-group">
+        <label>18星卷價格（楓幣）:</label>
+        <input type="number" id="scroll18Maple" value="5466666666" min="0" step="1" oninput="updateScrollPrice(18)">
+        <label>或（幾億楓幣）:</label>
+        <input type="number" id="scroll18Billion" value="54.66666666" min="0" step="0.01" oninput="updateScrollPrice(18)">
+    </div>
+    <div class="input-group">
+        <label>19星卷價格（楓幣）:</label>
+        <input type="number" id="scroll19Maple" value="17776888888" min="0" step="1" oninput="updateScrollPrice(19)">
+        <label>或（幾億楓幣）:</label>
+        <input type="number" id="scroll19Billion" value="177.76888888" min="0" step="0.01" oninput="updateScrollPrice(19)">
+    </div>
+    <div class="input-group">
+        <label>20星卷價格（楓幣）:</label>
+        <input type="number" id="scroll20Maple" value="48888888888" min="0" step="1" oninput="updateScrollPrice(20)">
+        <label>或（幾億楓幣）:</label>
+        <input type="number" id="scroll20Billion" value="488.88888888" min="0" step="0.01" oninput="updateScrollPrice(20)">
+    </div>
+    <button onclick="runSimulation()">開始模擬</button>
+
+    <!-- 結果顯示 -->
+    <h2>模擬結果</h2>
+    <div id="results"></div>
+    <h2>模擬日誌</h2>
+    <textarea id="log" readonly></textarea>
 
     <script>
-        function getMedian(arr) {
-            arr = arr.sort((a, b) => a - b);
-            let median;
-                if (arr.length % 2 === 0) {
-                // 數目為偶數
-                    median = (arr[arr.length / 2] + arr[arr.length / 2 - 1]) / 2;
-                } else {
-                // 數目為奇數
-                    median = arr[(arr.length - 1) / 2];
-                }
-                return median;
+        // 同步楓幣與幾億楓幣輸入
+        function updateEquipCompensation() {
+            const mapleInput = document.getElementById('equipCompensationMaple');
+            const billionInput = document.getElementById('equipCompensationBillion');
+            if (event.target === mapleInput) {
+                billionInput.value = (parseFloat(mapleInput.value) / 1e8).toFixed(8);
+            } else {
+                mapleInput.value = Math.round(parseFloat(billionInput.value) * 1e8);
             }
+        }
 
-        function getProbabilities(eventActive) {
+        function updateScrollPrice(star) {
+            const mapleInput = document.getElementById(`scroll${star}Maple`);
+            const billionInput = document.getElementById(`scroll${star}Billion`);
+            if (event.target === mapleInput) {
+                billionInput.value = (parseFloat(mapleInput.value) / 1e8).toFixed(8);
+            } else {
+                mapleInput.value = Math.round(parseFloat(billionInput.value) * 1e8);
+            }
+        }
+
+        // 機率表
+        function getProbabilities(eventActive = true) {
             const baseProbabilities = {
                 15: { success: 0.3000, destroy: 0.1050, drop: 0.0000, hold: 0.5950 },
                 16: { success: 0.3000, destroy: 0.1400, drop: 0.5600, hold: 0.0000 },
@@ -70,216 +110,283 @@
             return baseProbabilities;
         }
 
-        function simulateFromStart(startStar, restartStar, protectStart, buyBackBelowStart, buyBack17to16, target, simulations, scrollCosts, equipCompensationCost, upgradeCost, protectCost, probabilities) {
-            let totalCosts = [];
-            let totalDestroys = [];
-            let path = [];
-            
+        // 模擬函數
+        function simulateFromStart(startStar, restartStar, protectStart = null, buyBackThreshold = null, specialProtect = false, target = 20, simulations = 100000) {
+            const probabilities = getProbabilities(true);
+            const pointsPerBillion = parseFloat(document.getElementById('pointsPerBillion').value);
+            const scrollCosts = {};
+            for (let star = 15; star <= 20; star++) {
+                scrollCosts[star] = parseFloat(document.getElementById(`scroll${star}Maple`).value) * pointsPerBillion / 1e8;
+            }
+            const equipCompensationCost = parseFloat(document.getElementById('equipCompensationMaple').value) * pointsPerBillion / 1e8;
+            const upgradeCost = 9;
+            const protectCost = 50;
+
+            const totalCosts = [];
+            const totalDestroys = [];
+            let logContent = `模擬策略：起始買${startStar}星卷，若破壞後買${restartStar}星卷` +
+                            (buyBackThreshold !== null ? `，下降到${buyBackThreshold}星買回${startStar}星` : '') +
+                            (protectStart !== null ? `，從${protectStart}星開始防破壞` : '') +
+                            (specialProtect ? `，僅在19星及19掉18時防破壞` : '（無防破壞）') + '\n\n';
+
+            const allCosts = [];
             for (let sim = 0; sim < simulations; sim++) {
                 let totalCost = 0;
                 let destroyCount = 0;
                 let currentStar = startStar;
                 totalCost += scrollCosts[startStar];
-                
-                if (sim === 0) path = [`初始購買星力${startStar}強化卷 (成本: ${scrollCosts[startStar].toFixed(2)} 楓點)`];
-                
+                let consecutiveDrops = 0;
+                const path = [`初始購買星力${startStar}強化卷 (成本: ${scrollCosts[startStar].toFixed(2)} 楓點, 目前總成本: ${totalCost.toFixed(2)})`];
+
                 while (currentStar < target) {
-                    const useProtect = protectStart !== null && currentStar >= protectStart;
+                    const useProtect = (specialProtect && (currentStar === 19 || (currentStar === 18 && consecutiveDrops > 0))) ||
+                                       (protectStart !== null && currentStar >= protectStart);
+                    if (consecutiveDrops >= 2) {
+                        const cost = upgradeCost;
+                        totalCost += cost;
+                        if (sim === 0) {
+                            path.push(`${currentStar}升${currentStar + 1} 成功 [連掉補償] (成本: ${cost} 楓點, 目前總成本: ${totalCost.toFixed(2)})`);
+                        }
+                        currentStar += 1;
+                        consecutiveDrops = 0;
+                        continue;
+                    }
+
                     const cost = useProtect ? protectCost : upgradeCost;
                     totalCost += cost;
-                    
+
                     const outcome = Math.random();
                     const p_s = probabilities[currentStar].success;
                     const p_d = probabilities[currentStar].destroy;
                     const p_drop = probabilities[currentStar].drop;
-                    
+
                     if (outcome < p_s) {
-                        if (sim === 0) path.push(`${currentStar}升${currentStar+1} 成功 (成本: ${cost} 楓點${useProtect ? ' [防破壞]' : ''})`);
-                        currentStar++;
+                        if (sim === 0) {
+                            path.push(`${currentStar}升${currentStar + 1} 成功 (成本: ${cost} 楓點${useProtect ? ' [防破壞]' : ''}, 目前總成本: ${totalCost.toFixed(2)})`);
+                        }
+                        currentStar += 1;
+                        consecutiveDrops = 0;
                     } else if (outcome < p_s + p_d) {
                         if (useProtect) {
-                            if (sim === 0) path.push(`${currentStar}升${currentStar+1} 失敗，維持 (成本: ${cost} 楓點 [防破壞])`);
+                            if (currentStar > 15) {
+                                const nextStar = currentStar - 1;
+                                const buyBack = buyBackThreshold !== null && nextStar <= buyBackThreshold;
+                                if (sim === 0) {
+                                    if (buyBack) {
+                                        path.push(`${currentStar}升${currentStar + 1} 失敗，防破壞掉至${nextStar}，買回${startStar}星 (成本: ${cost} + ${scrollCosts[startStar].toFixed(2)} 楓點 [防破壞], 目前總成本: ${totalCost.toFixed(2)})`);
+                                    } else {
+                                        path.push(`${currentStar}升${currentStar + 1} 失敗，防破壞掉至${nextStar} (成本: ${cost} 楓點 [防破壞], 目前總成本: ${totalCost.toFixed(2)})`);
+                                    }
+                                }
+                                currentStar = nextStar;
+                                consecutiveDrops += 1;
+                                if (buyBack) {
+                                    totalCost += scrollCosts[startStar];
+                                    currentStar = startStar;
+                                    consecutiveDrops = 0;
+                                }
+                            } else {
+                                if (sim === 0) {
+                                    path.push(`${currentStar}升${currentStar + 1} 失敗，維持 (成本: ${cost} 楓點 [防破壞], 目前總成本: ${totalCost.toFixed(2)})`);
+                                }
+                                consecutiveDrops = 0;
+                            }
                         } else {
                             totalCost += equipCompensationCost + scrollCosts[restartStar];
-                            destroyCount++;
-                            if (sim === 0) path.push(`${currentStar}升${currentStar+1} 破壞，回到12星，購買${restartStar}星 (成本: ${cost} + ${equipCompensationCost.toFixed(2)} + ${scrollCosts[restartStar].toFixed(2)} 楓點)`);
+                            destroyCount += 1;
+                            if (sim === 0) {
+                                path.push(`${currentStar}升${currentStar + 1} 破壞，回到12星，購買${restartStar}星 (成本: ${cost} + ${equipCompensationCost.toFixed(2)} + ${scrollCosts[restartStar].toFixed(2)} 楓點, 目前總成本: ${totalCost.toFixed(2)})`);
+                            }
                             currentStar = restartStar;
+                            consecutiveDrops = 0;
                         }
                     } else if (outcome < p_s + p_d + p_drop) {
                         const nextStar = currentStar - 1;
-                        const buyBackBelow = buyBackBelowStart && nextStar < startStar;
-                        const buyBack17to16Trigger = buyBack17to16 && currentStar === 17 && nextStar === 16 && protectStart !== null && protectStart <= 16;
-                        const buyBack = buyBackBelow || buyBack17to16Trigger;
+                        const buyBack = buyBackThreshold !== null && nextStar <= buyBackThreshold;
                         if (sim === 0) {
                             if (buyBack) {
-                                path.push(`${currentStar}升${currentStar+1} 失敗，下滑至${nextStar}，買回${startStar}星 (成本: ${cost} + ${scrollCosts[startStar].toFixed(2)} 楓點${useProtect ? ' [防破壞]' : ''})`);
+                                path.push(`${currentStar}升${currentStar + 1} 失敗，下滑至${nextStar}，買回${startStar}星 (成本: ${cost} + ${scrollCosts[startStar].toFixed(2)} 楓點${useProtect ? ' [防破壞]' : ''}, 目前總成本: ${totalCost.toFixed(2)})`);
                             } else {
-                                path.push(`${currentStar}升${currentStar+1} 失敗，下滑至${nextStar} (成本: ${cost} 楓點${useProtect ? ' [防破壞]' : ''})`);
+                                path.push(`${currentStar}升${currentStar + 1} 失敗，下滑至${nextStar} (成本: ${cost} 楓點${useProtect ? ' [防破壞]' : ''}, 目前總成本: ${totalCost.toFixed(2)})`);
                             }
                         }
                         currentStar = nextStar;
+                        consecutiveDrops += 1;
                         if (buyBack) {
                             totalCost += scrollCosts[startStar];
                             currentStar = startStar;
+                            consecutiveDrops = 0;
                         }
                     } else {
-                        if (sim === 0) path.push(`${currentStar}升${currentStar+1} 失敗，維持 (成本: ${cost} 楓點${useProtect ? ' [防破壞]' : ''})`);
+                        if (sim === 0) {
+                            path.push(`${currentStar}升${currentStar + 1} 失敗，維持 (成本: ${cost} 楓點${useProtect ? ' [防破壞]' : ''}, 目前總成本: ${totalCost.toFixed(2)})`);
+                        }
+                        consecutiveDrops = 0;
                     }
                 }
+
+                allCosts.push(totalCost);
                 totalCosts.push(totalCost);
                 totalDestroys.push(destroyCount);
+
+                if (sim === 0) {
+                    logContent += "單次模擬路徑與總成本：\n" + path.join('\n') + `\n總成本 = ${totalCost.toFixed(2)} 楓點，破壞次數 = ${destroyCount} 次\n`;
+                }
             }
 
-            totalCosts.sort(function(a, b) {return a - b;});
-            const pr10 = totalCosts[totalCosts.length/ 10]
-            const pr25 = totalCosts[totalCosts.length/ 4]
-            const pr75 = totalCosts[totalCosts.length/ 4 * 3]
-            const pr90 = totalCosts[totalCosts.length/10 * 9]
-            const median = getMedian(totalCosts);
             const avgCost = totalCosts.reduce((a, b) => a + b, 0) / simulations;
             const avgDestroys = totalDestroys.reduce((a, b) => a + b, 0) / simulations;
-            return { avgCost, avgDestroys, path, median, pr10, pr25, pr75, pr90};
+
+            // 簡單分位數計算（替代 NumPy）
+            allCosts.sort((a, b) => a - b);
+            totalDestroys.sort((a, b) => a - b);
+            const percentiles = {
+                'P10': allCosts[Math.floor(simulations * 0.10)],
+                'P25': allCosts[Math.floor(simulations * 0.25)],
+                'P50': allCosts[Math.floor(simulations * 0.50)],
+                'P75': allCosts[Math.floor(simulations * 0.75)],
+                'P90': allCosts[Math.floor(simulations * 0.90)]
+            };
+            const destroyPercentiles = {
+                'P10': totalDestroys[Math.floor(simulations * 0.10)],
+                'P25': totalDestroys[Math.floor(simulations * 0.25)],
+                'P50': totalDestroys[Math.floor(simulations * 0.50)],
+                'P75': totalDestroys[Math.floor(simulations * 0.75)],
+                'P90': totalDestroys[Math.floor(simulations * 0.90)]
+            };
+
+            return [avgCost, avgDestroys, percentiles, destroyPercentiles, logContent];
         }
 
+        // 主模擬函數
         function runSimulation() {
-            const e = 100000000
-            // 獲取輸入值
-            const scrollPrices = {
-                15: parseFloat(document.getElementById("scroll15").value) * e || 81555555,
-                16: parseFloat(document.getElementById("scroll16").value) * e || 244444444,
-                17: parseFloat(document.getElementById("scroll17").value) * e || 2396666666,
-                18: parseFloat(document.getElementById("scroll18").value) * e || 5466666666,
-                19: parseFloat(document.getElementById("scroll19").value) * e || 17776888888,
-                20: parseFloat(document.getElementById("scroll20").value) * e || 48888888888
-            };
-            const pointsPerBillion = parseFloat(document.getElementById("pointsPerBillion").value) || 6;
-            const equipCompensationCostBase = parseFloat(document.getElementById("equipCost").value) * e || 600000000;
-            const simulations = parseInt(document.getElementById("simulations").value) || 100000;
-            const eventActive = document.getElementById("eventActive").checked;
-            
-            // 計算楓點成本
+            const pointsPerBillion = parseFloat(document.getElementById('pointsPerBillion').value);
             const scrollCosts = {};
-            for (let star in scrollPrices) {
-                scrollCosts[star] = scrollPrices[star] * pointsPerBillion / 10**8;
+            for (let star = 15; star <= 20; star++) {
+                scrollCosts[star] = parseFloat(document.getElementById(`scroll${star}Maple`).value) * pointsPerBillion / 1e8;
             }
-            const equipCompensationCost = equipCompensationCostBase * pointsPerBillion / 10**8;
-            const upgradeCost = 9;
-            const protectCost = 50;
-            const probabilities = getProbabilities(eventActive);
-            const target = 20;
+            const equipCompensationCost = parseFloat(document.getElementById('equipCompensationMaple').value) * pointsPerBillion / 1e8;
 
-            // 顯示初始條件
             let output = "=== 程式輸入條件 ===\n";
-            output += `活動狀態：${eventActive ? '啟用' : '未啟用'}（15星強化成功率100%）\n`;
+            output += "目標星數：0星到20星\n";
+            output += "活動狀態：啟用（15星強化成功率100%）\n";
             output += "星卷價格（楓幣）：\n";
-            for (let star in scrollPrices) {
-                output += `${star}星：${scrollCosts[star].toFixed(2)} 楓點\t ${(scrollPrices[star]/100000000).toLocaleString()} 億楓幣\n`;
+            for (let star = 15; star <= 20; star++) {
+                output += `${star}星：${parseFloat(document.getElementById(`scroll${star}Maple`).value).toLocaleString()} 楓幣\n`;
             }
             output += "\n楓點與楓幣換算：\n";
             output += `換算比例：1億楓幣 = ${pointsPerBillion} 楓點\n`;
-<!--            output += "\n星卷價格（轉換後，楓點）：\n";-->
-            for (let star in scrollCosts) {
-<!--                output += `${star}星：${scrollCosts[star].toFixed(2)} 楓點\n`;-->
+            output += "\n星卷價格（轉換後，楓點）：\n";
+            for (let star = 15; star <= 20; star++) {
+                output += `${star}星：${scrollCosts[star].toFixed(2)} 楓點\n`;
             }
-            output += `\n普通強化成本：${upgradeCost} 楓點（不防爆設定）\n`;
-            output += `防破壞強化成本：${protectCost} 楓點（破壞改為維持）\n`;
+            output += "\n普通強化成本：9 楓點（不防爆設定）\n";
+            output += "防破壞強化成本：50 楓點（破壞改為掉星，15星維持）\n";
             output += `裝備補償成本（破壞時）：${equipCompensationCost.toFixed(2)} 楓點\n`;
+            output += "成本已包含裝備破壞後拿裝備修復價格（楓幣楓點換算）\n";
+            output += "模擬次數：每個策略100,000次\n";
             output += "=================\n";
 
-            // 模擬所有策略
             const results = {};
-            const protectOptions = [null, 15, 16, 17, 18, 19];
-            const dropOptions = [false, true];
-            const buyback17to16Options = [false, true];
+            const protectOptionsBase = [null, 15, 16, 17, 18, 19];
 
             for (let startStar of [15, 16, 17, 18, 19]) {
-                for (let protectStart of protectOptions) {
-                    for (let buyBackBelowStart of dropOptions) {
-<!--                        output += `\n模擬策略：起始買${startStar}星卷，破壞後買${startStar}星卷` +-->
-<!--                            (protectStart !== null ? `，從${protectStart}星開始防破壞` : "（無防破壞）") +-->
-<!--                            (buyBackBelowStart ? `，下降低於${startStar}星買回` : "，下降時繼續強化");-->
-                        const { avgCost, avgDestroys, path, median, pr10, pr25, pr75, pr90} = simulateFromStart(startStar, startStar, protectStart, buyBackBelowStart, false, target, simulations, scrollCosts, equipCompensationCost, upgradeCost, protectCost, probabilities);
-                        const strategyKey = `${startStar}_protect_${protectStart === null ? 'none' : protectStart}_drop_${buyBackBelowStart ? 'buyback_below' : 'continue'}_buyback1716_false`;
-                        results[strategyKey] = { avgCost, avgDestroys, median, pr10, pr25, pr75, pr90};
-<!--                        output += `\n平均成本 = ${avgCost.toFixed(2)} 楓點\n平均破壞次數 = ${avgDestroys.toFixed(2)} 次 \n  前10% = ${pr10.toFixed(2)} \n  前25% = ${pr25.toFixed(2)} \n  中位數 = ${median.toFixed(2)} \n  後75% = ${pr75.toFixed(2)} \n  後90% = ${pr90.toFixed(2)} \n`;-->
-<!--                        output += `模擬路徑：\n${path.join('\n')}\n`;-->
+                const buyBackOptions = [null, ...Array(startStar - 15).keys()].map(i => i + 15);
+                for (let buyBackThreshold of buyBackOptions) {
+                    const protectOptions = buyBackThreshold === null ? protectOptionsBase : protectOptionsBase.filter(p => p === null || p > buyBackThreshold);
+                    for (let protectStart of protectOptions) {
+                        const strategyKey = `${startStar}_protect_${protectStart === null ? 'none' : protectStart}_buyback_${buyBackThreshold === null ? 'none' : buyBackThreshold}`;
+                        if (results[strategyKey]) continue;
+
+                        output += `\n模擬策略：起始買${startStar}星卷，若破壞後買${startStar}星卷` +
+                                  (buyBackThreshold !== null ? `，下降到${buyBackThreshold}星買回${startStar}星` : '') +
+                                  (protectStart !== null ? `，從${protectStart}星開始防破壞` : '（無防破壞）') + '\n';
+                        const [avgCost, avgDestroys, percentiles, destroyPercentiles, logContent] = simulateFromStart(startStar, startStar, protectStart, buyBackThreshold);
+                        results[strategyKey] = [avgCost, avgDestroys, percentiles, destroyPercentiles, logContent];
+
+                        output += `平均成本 ${avgCost.toFixed(2)} 楓點 | 成本分位數 ${Object.entries(percentiles).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}\n`;
+                        const destroyNonZero = Object.values(destroyPercentiles).some(v => v > 0);
+                        output += `平均破壞次數 ${avgDestroys.toFixed(2)} 次${destroyNonZero ? ` | 破壞次數分位數 ${Object.entries(destroyPercentiles).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}` : ''}\n`;
+                        output += `模擬路徑已記錄\n`;
                     }
                 }
             }
 
-            for (let startStar of [17, 18, 19]) {
-                for (let protectStart of [16, 17, 18, 19]) {
-                    for (let buyBackBelowStart of dropOptions) {
-<!--                        output += `\n模擬策略：起始買${startStar}星卷，破壞後買${startStar}星卷，從${protectStart}星開始防破壞` +-->
-<!--                            (buyBackBelowStart ? `，下降低於${startStar}星買回` : "") +-->
-<!--                            `，17降16買回${startStar}星`;-->
-                        const { avgCost, avgDestroys, path, median, pr10, pr25, pr75, pr90} = simulateFromStart(startStar, startStar, protectStart, buyBackBelowStart, true, target, simulations, scrollCosts, equipCompensationCost, upgradeCost, protectCost, probabilities);
-                        const strategyKey = `${startStar}_protect_${protectStart}_drop_${buyBackBelowStart ? 'buyback_below' : 'continue'}_buyback1716_true`;
-                        results[strategyKey] = { avgCost, avgDestroys, median, pr10, pr25, pr75, pr90};
-<!--                        output += `\n平均成本 = ${avgCost.toFixed(2)} 楓點\n平均破壞次數 = ${avgDestroys.toFixed(2)} 次\n`;-->
-<!--                        output += `模擬路徑：\n${path.join('\n')}\n`;-->
-                    }
-                }
+            // 特殊策略
+            for (let startStar of [15, 16, 17, 18, 19]) {
+                output += `\n模擬策略：起始買${startStar}星卷，若破壞後買${startStar}星卷，僅在19星及19掉18時防破壞\n`;
+                const [avgCost, avgDestroys, percentiles, destroyPercentiles, logContent] = simulateFromStart(startStar, startStar, null, null, true);
+                results[`${startStar}_protect_special_buyback_none`] = [avgCost, avgDestroys, percentiles, destroyPercentiles, logContent];
+                output += `平均成本 ${avgCost.toFixed(2)} 楓點 | 成本分位數 ${Object.entries(percentiles).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}\n`;
+                const destroyNonZero = Object.values(destroyPercentiles).some(v => v > 0);
+                output += `平均破壞次數 ${avgDestroys.toFixed(2)} 次${destroyNonZero ? ` | 破壞次數分位數 ${Object.entries(destroyPercentiles).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}` : ''}\n`;
+                output += `模擬路徑已記錄\n`;
+                if (startStar === 15) document.getElementById('log').value = logContent; // 只顯示第一個特殊策略的日誌
             }
 
-<!--            output += `\n模擬策略：起始買20星卷（無破壞）\n`;-->
+            // 直接買20星
+            output += `\n模擬策略：起始買20星卷\n`;
             const avgCost20 = scrollCosts[20];
             const avgDestroys20 = 0;
-            results["20_protect_none_drop_continue_buyback1716_false"] = { avgCost: avgCost20, avgDestroys: avgDestroys20 };
-<!--            output += `平均成本 = ${avgCost20.toFixed(2)} 楓點\n平均破壞次數 = ${avgDestroys20.toFixed(2)} 次\n`;-->
-<!--            output += `模擬路徑：\n初始購買星力20強化卷 (成本: ${scrollCosts[20].toFixed(2)} 楓點)\n`;-->
+            const percentiles20 = { 'P10': avgCost20, 'P25': avgCost20, 'P50': avgCost20, 'P75': avgCost20, 'P90': avgCost20 };
+            const destroyPercentiles20 = { 'P10': 0, 'P25': 0, 'P50': 0, 'P75': 0, 'P90': 0 };
+            results["20_protect_none_buyback_none"] = [avgCost20, avgDestroys20, percentiles20, destroyPercentiles20, "直接買20星"];
+            output += `平均成本 ${avgCost20.toFixed(2)} 楓點 | 成本分位數 ${Object.entries(percentiles20).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}\n`;
+            output += `平均破壞次數 ${avgDestroys20.toFixed(2)} 次\n`;
+            output += `模擬路徑已記錄\n`;
 
-            // 整理所有模擬情境
-<!--            output += "\n=== 所有模擬情境（共85種） ===\n";-->
-            const sortedResults = Object.entries(results).sort((a, b) => a[1].avgCost - b[1].avgCost);
-            for (let [strategyKey, { avgCost, avgDestroys }] of sortedResults) {
+            // 所有模擬情境
+            output += "\n=== 所有模擬情境 ===\n";
+            let count = 0;
+            const sortedResults = Object.entries(results).sort((a, b) => {
+                const partsA = a[0].split('_protect_');
+                const partsB = b[0].split('_protect_');
+                const startStarA = parseInt(partsA[0]);
+                const startStarB = parseInt(partsB[0]);
+                const restA = partsA[1].split('_buyback_');
+                const restB = partsB[1].split('_buyback_');
+                const protectA = restA[0] === 'none' ? -1 : (restA[0] === 'special' ? 100 : parseInt(restA[0]));
+                const protectB = restB[0] === 'none' ? -1 : (restB[0] === 'special' ? 100 : parseInt(restB[0]));
+                const buyBackA = restA[1] === 'none' ? -1 : parseInt(restA[1]);
+                const buyBackB = restB[1] === 'none' ? -1 : parseInt(restB[1]);
+                return startStarA - startStarB || protectA - protectB || buyBackA - buyBackB || a[1][0] - b[1][0];
+            });
+            for (let [strategyKey, [avgCost]] of sortedResults) {
                 const parts = strategyKey.split('_protect_');
                 const startStar = parts[0];
-                const rest = parts[1].split('_drop_');
+                const rest = parts[1].split('_buyback_');
                 const protectPart = rest[0];
-                const dropRest = rest[1].split('_buyback1716_');
-                const dropPart = dropRest[0];
-                const buyback1716Part = dropRest[1];
-                const desc = `起始買${startStar}星卷，破壞後買${startStar}星卷` +
-                    (protectPart !== 'none' ? `，從${protectPart}星開始防破壞` : "（無防破壞）") +
-                    (dropPart === 'buyback_below' ? `，下降低於${startStar}星買回` : "，下降時繼續強化") +
-                    (buyback1716Part === 'true' ? `，17降16買回${startStar}星` : "");
-<!--                output += `${desc}：平均成本 = ${avgCost.toFixed(2)} 楓點，平均破壞次數 = ${avgDestroys.toFixed(2)} 次\n`;-->
+                const buyBackPart = rest[1];
+                const desc = `起始買${startStar}星卷，若破壞後買${startStar}星卷` +
+                             (buyBackPart !== 'none' ? `，下降到${buyBackPart}星買回${startStar}星` : '') +
+                             (protectPart !== 'none' && protectPart !== 'special' ? `，從${protectPart}星開始防破壞` : '') +
+                             (protectPart === 'special' ? `，僅在19星及19掉18時防破壞` : protectPart === 'none' ? '（無防破壞）' : '');
+                count++;
+                output += `${count}. ${desc}\n`;
             }
 
-            // 最佳策略
+            // 前三佳策略
             output += "\n=== 前三佳策略 ===\n";
-            for (let i of [1,2,3]){
-                const bestStrategyKey = sortedResults[i][0];
-                const bestCost = sortedResults[i][1].avgCost;
-                const bestDestroys = sortedResults[i][1].avgDestroys;
-                const pr10 = sortedResults[i][1].pr10;
-                const pr25 = sortedResults[i][1].pr25;
-                const median = sortedResults[i][1].median;
-                const pr75 = sortedResults[i][1].pr75;
-                const pr90 = sortedResults[i][1].pr90;
-                const bestParts = bestStrategyKey.split('_protect_');
-                const bestStartStar = bestParts[0];
-                const bestRest = bestParts[1].split('_drop_');
-                const bestProtectPart = bestRest[0];
-                const bestDropRest = bestRest[1].split('_buyback1716_');
-                const bestDropPart = bestDropRest[0];
-                const bestBuyback1716Part = bestDropRest[1];
-                let bestStrategyDesc = `起始買${bestStartStar}星卷，破壞後買${bestStartStar}星卷` +
-                    (bestProtectPart === 'none' ? "（無防破壞）" : `，從${bestProtectPart}星開始防破壞`) +
-                    (bestDropPart === 'buyback_below' ? `，下降低於${bestStartStar}星買回` : "，下降時繼續強化") +
-                    (bestBuyback1716Part === 'true' ? `，17降16買回${bestStartStar}星` : "");
-                output += `最佳策略：${bestStrategyDesc}\n`;
-                output += `平均成本 = ${bestCost.toFixed(2)} 楓點\n`;
-                output += `平均破壞次數 = ${bestDestroys.toFixed(2)} 次\n`;
-                output += `  前10% = ${pr10.toFixed(2)} 楓點\n`;
-                output += `  前25% = ${pr25.toFixed(2)} 楓點\n`;
-                output += `  中位數 = ${median.toFixed(2)} 楓點\n`;
-                output += `  後75% = ${pr75.toFixed(2)} 楓點\n`;
-                output += `  後90% = ${pr90.toFixed(2)} 楓點\n\n`;
+            const topStrategies = Object.entries(results).sort((a, b) => a[1][0] - b[1][0]).slice(0, 3);
+            const strategyLabels = ["最佳策略", "次佳策略", "第三佳策略"];
+            for (let i = 0; i < topStrategies.length; i++) {
+                const [strategyKey, [avgCost, avgDestroys, percentiles, destroyPercentiles]] = topStrategies[i];
+                const parts = strategyKey.split('_protect_');
+                const startStar = parts[0];
+                const rest = parts[1].split('_buyback_');
+                const protectPart = rest[0];
+                const buyBackPart = rest[1];
+                const desc = `起始買${startStar}星卷，若破壞後買${startStar}星卷` +
+                             (buyBackPart !== 'none' ? `，下降到${buyBackPart}星買回${startStar}星` : '') +
+                             (protectPart !== 'none' && protectPart !== 'special' ? `，從${protectPart}星開始防破壞` : '') +
+                             (protectPart === 'special' ? `，僅在19星及19掉18時防破壞` : protectPart === 'none' ? '（無防破壞）' : '');
+                output += `${strategyLabels[i]}：${desc}\n`;
+                output += `平均成本 ${avgCost.toFixed(2)} 楓點 | 成本分位數 ${Object.entries(percentiles).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}\n`;
+                const destroyNonZero = Object.values(destroyPercentiles).some(v => v > 0);
+                output += `平均破壞次數 ${avgDestroys.toFixed(2)} 次${destroyNonZero ? ` | 破壞次數分位數 ${Object.entries(destroyPercentiles).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}` : ''}\n\n`;
             }
 
-            document.getElementById("results").innerText = output;
+            document.getElementById('results').textContent = output;
         }
     </script>
 </body>
