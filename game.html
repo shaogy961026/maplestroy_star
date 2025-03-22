@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>互動裝備強化模擬器（最終版3）</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
+        #log { white-space: pre-wrap; font-family: monospace; border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
+        button { padding: 10px 20px; margin: 5px; }
+        #actions { margin-top: 10px; }
+        .disabled { background-color: #ccc; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>互動裝備強化模擬器</h1>
+
+    <h2>初始條件</h2>
+    <table>
+        <tr><th>項目</th><th>值</th></tr>
+        <tr><td>目標星數</td><td>20星</td></tr>
+        <tr><td>活動狀態</td><td>啟用（15星成功率100%）</td></tr>
+        <tr><td>普通強化成本</td><td>9 楓點</td></tr>
+        <tr><td>防破壞成本</td><td>50 楓點</td></tr>
+        <tr><td>裝備補償成本</td><td>180 楓點</td></tr>
+        <tr><td>換算比例</td><td>1億楓幣 = 6 楓點</td></tr>
+    </table>
+
+    <h2>星卷價格</h2>
+    <table>
+        <tr><th>星級</th><th>楓幣</th><th>楓點</th></tr>
+        <tr><td>15星</td><td>81,555,555</td><td>4.89</td></tr>
+        <tr><td>16星</td><td>244,444,444</td><td>14.67</td></tr>
+        <tr><td>17星</td><td>2,396,666,666</td><td>143.80</td></tr>
+        <tr><td>18星</td><td>5,466,666,666</td><td>328.00</td></tr>
+        <tr><td>19星</td><td>17,776,888,888</td><td>1,066.61</td></tr>
+        <tr><td>20星</td><td>48,888,888,888</td><td>2,933.33</td></tr>
+    </table>
+
+    <h2>強化機率</h2>
+    <table>
+        <tr><th>星級</th><th>成功</th><th>破壞</th><th>掉星</th><th>維持</th></tr>
+        <tr><td>15星</td><td>100%</td><td>0%</td><td>0%</td><td>0%</td></tr>
+        <tr><td>16星</td><td>30%</td><td>14%</td><td>56%</td><td>0%</td></tr>
+        <tr><td>17星</td><td>30%</td><td>21%</td><td>49%</td><td>0%</td></tr>
+        <tr><td>18星</td><td>30%</td><td>28%</td><td>42%</td><td>0%</td></tr>
+        <tr><td>19星</td><td>30%</td><td>28%</td><td>42%</td><td>0%</td></tr>
+    </table>
+
+    <h2>模擬控制</h2>
+    <div id="startOptions" style="display: block;">
+        <label>選擇起始星卷：</label>
+        <select id="startStar">
+            <option value="15">15星</option>
+            <option value="16">16星</option>
+            <option value="17">17星</option>
+            <option value="18">18星</option>
+            <option value="19">19星</option>
+            <option value="20">20星</option>
+        </select>
+        <button onclick="buyScroll()">購買星卷並開始</button>
+    </div>
+
+    <div id="actions" style="display: none;">
+        <p>當前星級：<span id="currentStar"></span> | 連續掉星：<span id="consecutiveDrops"></span> | 總成本：<span id="totalCost">0</span> 楓點 | 破壞次數：<span id="destroyCount">0</span></p>
+        <button id="enhanceNormalBtn" onclick="enhance('normal')">普通強化 (9 楓點)</button>
+        <button id="enhanceProtectBtn" onclick="enhance('protect')">防破壞強化 (50 楓點)</button>
+        <button id="rebuyBtn" onclick="showRebuyOptions()">重新購買星卷</button>
+    </div>
+
+    <div id="rebuyOptions" style="display: none;">
+        <p>選擇新的星卷以覆蓋當前星級：</p>
+        <select id="rebuyStar">
+            <option value="15">15星</option>
+            <option value="16">16星</option>
+            <option value="17">17星</option>
+            <option value="18">18星</option>
+            <option value="19">19星</option>
+            <option value="20">20星</option>
+        </select>
+        <button onclick="rebuyScroll()">確認購買</button>
+    </div>
+
+    <div id="destroyOptions" style="display: none;">
+        <p>裝備已破壞！請選擇重新購買的星卷：</p>
+        <select id="restartStar">
+            <option value="15">15星</option>
+            <option value="16">16星</option>
+            <option value="17">17星</option>
+            <option value="18">18星</option>
+            <option value="19">19星</option>
+        </select>
+        <button onclick="buyAfterDestroy()">購買並繼續</button>
+    </div>
+
+    <button onclick="resetSimulation()">重置模擬</button>
+
+    <h2>模擬記錄</h2>
+    <div id="log"></div>
+
+    <script>
+        const scrollCosts = {
+            15: 4.89,
+            16: 14.67,
+            17: 143.80,
+            18: 328.00,
+            19: 1066.61,
+            20: 2933.33
+        };
+        const probabilities = {
+            15: { success: 1.0000, destroy: 0.0000, drop: 0.0000, hold: 0.0000 },
+            16: { success: 0.3000, destroy: 0.1400, drop: 0.5600, hold: 0.0000 },
+            17: { success: 0.3000, destroy: 0.2100, drop: 0.4900, hold: 0.0000 },
+            18: { success: 0.3000, destroy: 0.2800, drop: 0.4200, hold: 0.0000 },
+            19: { success: 0.3000, destroy: 0.2800, drop: 0.4200, hold: 0.0000 }
+        };
+        const upgradeCost = 9;
+        const protectCost = 50;
+        const equipCompensationCost = 180;
+        const target = 20;
+
+        let currentStar = 0;
+        let totalCost = 0;
+        let consecutiveDrops = 0;
+        let destroyCount = 0;
+        let simulationStarted = false;
+        let isEnhancing = false;
+
+        function log(message) {
+            document.getElementById('log').innerHTML += message + '\n';
+            document.getElementById('log').scrollTop = document.getElementById('log').scrollHeight;
+        }
+
+        function updateStatus() {
+            document.getElementById('currentStar').textContent = currentStar;
+            document.getElementById('consecutiveDrops').textContent = consecutiveDrops;
+            document.getElementById('totalCost').textContent = totalCost.toFixed(2);
+            document.getElementById('destroyCount').textContent = destroyCount;
+
+            const normalBtn = document.getElementById('enhanceNormalBtn');
+            const protectBtn = document.getElementById('enhanceProtectBtn');
+            const rebuyBtn = document.getElementById('rebuyBtn');
+            if (consecutiveDrops >= 2) {
+                normalBtn.disabled = false;
+                normalBtn.classList.remove('disabled');
+                normalBtn.textContent = '普通強化 (9 楓點) [連掉補償]';
+                protectBtn.disabled = true;
+                protectBtn.classList.add('disabled');
+            } else {
+                normalBtn.disabled = false;
+                normalBtn.classList.remove('disabled');
+                normalBtn.textContent = '普通強化 (9 楓點)';
+                protectBtn.disabled = false;
+                protectBtn.classList.remove('disabled');
+            }
+            rebuyBtn.disabled = isEnhancing;
+            if (currentStar >= target || isEnhancing) {
+                normalBtn.disabled = true;
+                normalBtn.classList.add('disabled');
+                protectBtn.disabled = true;
+                protectBtn.classList.add('disabled');
+            }
+        }
+
+        function buyScroll() {
+            if (simulationStarted) return;
+            const startStar = parseInt(document.getElementById('startStar').value);
+            currentStar = startStar;
+            totalCost = scrollCosts[startStar];
+            simulationStarted = true;
+
+            log(`初始購買星力${startStar}強化卷 (成本: ${scrollCosts[startStar].toFixed(2)} 楓點, 目前總成本: ${totalCost.toFixed(2)})`);
+            document.getElementById('startOptions').style.display = 'none';
+            if (currentStar < target) {
+                document.getElementById('actions').style.display = 'block';
+            } else {
+                log(`已達20星，模擬結束！總成本: ${totalCost.toFixed(2)} 楓點，破壞次數: ${destroyCount}`);
+            }
+            updateStatus();
+        }
+
+        function enhance(type) {
+            if (currentStar >= target || isEnhancing) return;
+            isEnhancing = true;
+
+            if (consecutiveDrops >= 2) {
+                totalCost += upgradeCost;
+                log(`${currentStar}升${currentStar+1} 成功 [連掉補償] (成本: ${upgradeCost} 楓點, 目前總成本: ${totalCost.toFixed(2)})`);
+                currentStar += 1;
+                consecutiveDrops = 0;
+            } else {
+                const useProtect = type === 'protect';
+                const cost = useProtect ? protectCost : upgradeCost;
+                totalCost += cost;
+
+                const oldStar = currentStar;
+                const outcome = Math.random();
+                const p_s = probabilities[currentStar].success;
+                const p_d = probabilities[currentStar].destroy;
+                const p_drop = probabilities[currentStar].drop;
+
+                if (outcome < p_s) {
+                    currentStar += 1;
+                    log(`${oldStar}升${oldStar+1} 成功 (成本: ${cost} 楓點${useProtect ? ' [防破壞]' : ''}, 目前總成本: ${totalCost.toFixed(2)})`);
+                    consecutiveDrops = 0;
+                } else if (outcome < p_s + p_d) {
+                    if (useProtect) {
+                        currentStar = currentStar > 15 ? currentStar - 1 : currentStar;
+                        log(`${oldStar}升${oldStar+1} 失敗，${currentStar === oldStar ? '維持' : `防破壞掉至${currentStar}`} (成本: ${cost} 楓點 [防破壞], 目前總成本: ${totalCost.toFixed(2)})`);
+                    } else {
+                        log(`${oldStar}升${oldStar+1} 破壞 (成本: ${cost} 楓點, 目前總成本: ${totalCost.toFixed(2)})`);
+                        destroyCount += 1;
+                        document.getElementById('actions').style.display = 'none';
+                        document.getElementById('destroyOptions').style.display = 'block';
+                        isEnhancing = false;
+                        updateStatus();
+                        return;
+                    }
+                } else if (outcome < p_s + p_d + p_drop) {
+                    currentStar -= 1;
+                    log(`${oldStar}升${oldStar+1} 失敗，下滑至${currentStar} (成本: ${cost} 楓點${useProtect ? ' [防破壞]' : ''}, 目前總成本: ${totalCost.toFixed(2)})`);
+                } else {
+                    log(`${oldStar}升${oldStar+1} 失敗，維持 (成本: ${cost} 楓點${useProtect ? ' [防破壞]' : ''}, 目前總成本: ${totalCost.toFixed(2)})`);
+                    consecutiveDrops = 0;
+                }
+
+                if (currentStar < oldStar) {
+                    consecutiveDrops += 1;
+                } else {
+                    consecutiveDrops = 0;
+                }
+            }
+
+            if (currentStar === target) {
+                log(`已達20星，模擬結束！總成本: ${totalCost.toFixed(2)} 楓點，破壞次數: ${destroyCount}`);
+                document.getElementById('actions').style.display = 'none';
+            }
+
+            isEnhancing = false;
+            updateStatus();
+        }
+
+        function showRebuyOptions() {
+            if (isEnhancing || currentStar >= target) return;
+            document.getElementById('actions').style.display = 'none';
+            document.getElementById('rebuyOptions').style.display = 'block';
+        }
+
+        function rebuyScroll() {
+            if (isEnhancing) return;
+            const newStar = parseInt(document.getElementById('rebuyStar').value);
+            const oldStar = currentStar;
+            currentStar = newStar;
+            totalCost += scrollCosts[newStar];
+            consecutiveDrops = 0;
+
+            log(`從${oldStar}星重新購買星力${newStar}強化卷 (成本: ${scrollCosts[newStar].toFixed(2)} 楓點, 目前總成本: ${totalCost.toFixed(2)})`);
+            document.getElementById('rebuyOptions').style.display = 'none';
+            if (currentStar < target) {
+                document.getElementById('actions').style.display = 'block';
+            } else {
+                log(`已達20星，模擬結束！總成本: ${totalCost.toFixed(2)} 楓點，破壞次數: ${destroyCount}`);
+            }
+            updateStatus();
+        }
+
+        function buyAfterDestroy() {
+            if (isEnhancing) return;
+            const restartStar = parseInt(document.getElementById('restartStar').value);
+            totalCost += equipCompensationCost + scrollCosts[restartStar];
+            currentStar = restartStar;
+            consecutiveDrops = 0;
+            log(`裝備破壞後，購買星力${restartStar}強化卷 (成本: ${equipCompensationCost.toFixed(2)} + ${scrollCosts[restartStar].toFixed(2)} 楓點, 目前總成本: ${totalCost.toFixed(2)})`);
+            document.getElementById('destroyOptions').style.display = 'none';
+            if (currentStar < target) {
+                document.getElementById('actions').style.display = 'block';
+            } else {
+                log(`已達20星，模擬結束！總成本: ${totalCost.toFixed(2)} 楓點，破壞次數: ${destroyCount}`);
+            }
+            updateStatus();
+        }
+
+        function resetSimulation() {
+            currentStar = 0;
+            totalCost = 0;
+            consecutiveDrops = 0;
+            destroyCount = 0;
+            simulationStarted = false;
+            isEnhancing = false;
+            document.getElementById('startOptions').style.display = 'block';
+            document.getElementById('actions').style.display = 'none';
+            document.getElementById('rebuyOptions').style.display = 'none';
+            document.getElementById('destroyOptions').style.display = 'none';
+            document.getElementById('log').innerHTML = '';
+            updateStatus();
+        }
+    </script>
+</body>
+</html>
