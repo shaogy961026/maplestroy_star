@@ -12,6 +12,7 @@
         #results, #log { margin-top: 20px; white-space: pre-wrap; }
         textarea { width: 100%; height: 200px; }
         button { margin-top: 10px; padding: 10px 20px; }
+        select { margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -71,9 +72,15 @@
     <h2>模擬結果</h2>
     <div id="results"></div>
     <h2>模擬日誌</h2>
+    <select id="strategySelect" onchange="updateLog()">
+        <option value="">請選擇策略</option>
+    </select>
     <textarea id="log" readonly></textarea>
 
     <script>
+        // 儲存所有策略的日誌
+        let strategyLogs = {};
+
         // 同步楓幣與幾億楓幣輸入
         function updateEquipCompensation() {
             const mapleInput = document.getElementById('equipCompensationMaple');
@@ -237,7 +244,6 @@
             const avgCost = totalCosts.reduce((a, b) => a + b, 0) / simulations;
             const avgDestroys = totalDestroys.reduce((a, b) => a + b, 0) / simulations;
 
-            // 簡單分位數計算（替代 NumPy）
             allCosts.sort((a, b) => a - b);
             totalDestroys.sort((a, b) => a - b);
             const percentiles = {
@@ -256,6 +262,13 @@
             };
 
             return [avgCost, avgDestroys, percentiles, destroyPercentiles, logContent];
+        }
+
+        // 更新日誌顯示
+        function updateLog() {
+            const select = document.getElementById('strategySelect');
+            const selectedStrategy = select.value;
+            document.getElementById('log').value = strategyLogs[selectedStrategy] || '';
         }
 
         // 主模擬函數
@@ -288,21 +301,27 @@
             output += "=================\n";
 
             const results = {};
+            strategyLogs = {}; // 重置日誌儲存
             const protectOptionsBase = [null, 15, 16, 17, 18, 19];
 
             for (let startStar of [15, 16, 17, 18, 19]) {
-                const buyBackOptions = [null, ...Array(startStar - 15).keys()].map(i => i + 15);
+                const buyBackOptions = [null];
+                for (let i = 15; i < startStar; i++) {
+                    buyBackOptions.push(i);
+                }
                 for (let buyBackThreshold of buyBackOptions) {
                     const protectOptions = buyBackThreshold === null ? protectOptionsBase : protectOptionsBase.filter(p => p === null || p > buyBackThreshold);
                     for (let protectStart of protectOptions) {
                         const strategyKey = `${startStar}_protect_${protectStart === null ? 'none' : protectStart}_buyback_${buyBackThreshold === null ? 'none' : buyBackThreshold}`;
                         if (results[strategyKey]) continue;
 
-                        output += `\n模擬策略：起始買${startStar}星卷，若破壞後買${startStar}星卷` +
-                                  (buyBackThreshold !== null ? `，下降到${buyBackThreshold}星買回${startStar}星` : '') +
-                                  (protectStart !== null ? `，從${protectStart}星開始防破壞` : '（無防破壞）') + '\n';
+                        const desc = `起始買${startStar}星卷，若破壞後買${startStar}星卷` +
+                                     (buyBackThreshold !== null ? `，下降到${buyBackThreshold}星買回${startStar}星` : '') +
+                                     (protectStart !== null ? `，從${protectStart}星開始防破壞` : '（無防破壞）');
+                        output += `\n模擬策略：${desc}\n`;
                         const [avgCost, avgDestroys, percentiles, destroyPercentiles, logContent] = simulateFromStart(startStar, startStar, protectStart, buyBackThreshold);
-                        results[strategyKey] = [avgCost, avgDestroys, percentiles, destroyPercentiles, logContent];
+                        results[strategyKey] = [avgCost, avgDestroys, percentiles, destroyPercentiles, desc];
+                        strategyLogs[desc] = logContent;
 
                         output += `平均成本 ${avgCost.toFixed(2)} 楓點 | 成本分位數 ${Object.entries(percentiles).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}\n`;
                         const destroyNonZero = Object.values(destroyPercentiles).some(v => v > 0);
@@ -314,23 +333,26 @@
 
             // 特殊策略
             for (let startStar of [15, 16, 17, 18, 19]) {
-                output += `\n模擬策略：起始買${startStar}星卷，若破壞後買${startStar}星卷，僅在19星及19掉18時防破壞\n`;
+                const desc = `起始買${startStar}星卷，若破壞後買${startStar}星卷，僅在19星及19掉18時防破壞`;
+                output += `\n模擬策略：${desc}\n`;
                 const [avgCost, avgDestroys, percentiles, destroyPercentiles, logContent] = simulateFromStart(startStar, startStar, null, null, true);
-                results[`${startStar}_protect_special_buyback_none`] = [avgCost, avgDestroys, percentiles, destroyPercentiles, logContent];
+                results[`${startStar}_protect_special_buyback_none`] = [avgCost, avgDestroys, percentiles, destroyPercentiles, desc];
+                strategyLogs[desc] = logContent;
                 output += `平均成本 ${avgCost.toFixed(2)} 楓點 | 成本分位數 ${Object.entries(percentiles).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}\n`;
                 const destroyNonZero = Object.values(destroyPercentiles).some(v => v > 0);
                 output += `平均破壞次數 ${avgDestroys.toFixed(2)} 次${destroyNonZero ? ` | 破壞次數分位數 ${Object.entries(destroyPercentiles).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}` : ''}\n`;
                 output += `模擬路徑已記錄\n`;
-                if (startStar === 15) document.getElementById('log').value = logContent; // 只顯示第一個特殊策略的日誌
             }
 
             // 直接買20星
-            output += `\n模擬策略：起始買20星卷\n`;
+            const desc20 = "起始買20星卷";
+            output += `\n模擬策略：${desc20}\n`;
             const avgCost20 = scrollCosts[20];
             const avgDestroys20 = 0;
             const percentiles20 = { 'P10': avgCost20, 'P25': avgCost20, 'P50': avgCost20, 'P75': avgCost20, 'P90': avgCost20 };
             const destroyPercentiles20 = { 'P10': 0, 'P25': 0, 'P50': 0, 'P75': 0, 'P90': 0 };
-            results["20_protect_none_buyback_none"] = [avgCost20, avgDestroys20, percentiles20, destroyPercentiles20, "直接買20星"];
+            results["20_protect_none_buyback_none"] = [avgCost20, avgDestroys20, percentiles20, destroyPercentiles20, desc20];
+            strategyLogs[desc20] = `模擬策略：${desc20}\n\n單次模擬路徑與總成本：\n初始購買星力20強化卷 (成本: ${scrollCosts[20].toFixed(2)} 楓點, 目前總成本: ${scrollCosts[20].toFixed(2)})\n總成本 = ${scrollCosts[20].toFixed(2)} 楓點，破壞次數 = 0 次\n`;
             output += `平均成本 ${avgCost20.toFixed(2)} 楓點 | 成本分位數 ${Object.entries(percentiles20).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}\n`;
             output += `平均破壞次數 ${avgDestroys20.toFixed(2)} 次\n`;
             output += `模擬路徑已記錄\n`;
@@ -351,16 +373,7 @@
                 const buyBackB = restB[1] === 'none' ? -1 : parseInt(restB[1]);
                 return startStarA - startStarB || protectA - protectB || buyBackA - buyBackB || a[1][0] - b[1][0];
             });
-            for (let [strategyKey, [avgCost]] of sortedResults) {
-                const parts = strategyKey.split('_protect_');
-                const startStar = parts[0];
-                const rest = parts[1].split('_buyback_');
-                const protectPart = rest[0];
-                const buyBackPart = rest[1];
-                const desc = `起始買${startStar}星卷，若破壞後買${startStar}星卷` +
-                             (buyBackPart !== 'none' ? `，下降到${buyBackPart}星買回${startStar}星` : '') +
-                             (protectPart !== 'none' && protectPart !== 'special' ? `，從${protectPart}星開始防破壞` : '') +
-                             (protectPart === 'special' ? `，僅在19星及19掉18時防破壞` : protectPart === 'none' ? '（無防破壞）' : '');
+            for (let [strategyKey, [avgCost, , , , desc]] of sortedResults) {
                 count++;
                 output += `${count}. ${desc}\n`;
             }
@@ -370,16 +383,7 @@
             const topStrategies = Object.entries(results).sort((a, b) => a[1][0] - b[1][0]).slice(0, 3);
             const strategyLabels = ["最佳策略", "次佳策略", "第三佳策略"];
             for (let i = 0; i < topStrategies.length; i++) {
-                const [strategyKey, [avgCost, avgDestroys, percentiles, destroyPercentiles]] = topStrategies[i];
-                const parts = strategyKey.split('_protect_');
-                const startStar = parts[0];
-                const rest = parts[1].split('_buyback_');
-                const protectPart = rest[0];
-                const buyBackPart = rest[1];
-                const desc = `起始買${startStar}星卷，若破壞後買${startStar}星卷` +
-                             (buyBackPart !== 'none' ? `，下降到${buyBackPart}星買回${startStar}星` : '') +
-                             (protectPart !== 'none' && protectPart !== 'special' ? `，從${protectPart}星開始防破壞` : '') +
-                             (protectPart === 'special' ? `，僅在19星及19掉18時防破壞` : protectPart === 'none' ? '（無防破壞）' : '');
+                const [strategyKey, [avgCost, avgDestroys, percentiles, destroyPercentiles, desc]] = topStrategies[i];
                 output += `${strategyLabels[i]}：${desc}\n`;
                 output += `平均成本 ${avgCost.toFixed(2)} 楓點 | 成本分位數 ${Object.entries(percentiles).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(', ')}\n`;
                 const destroyNonZero = Object.values(destroyPercentiles).some(v => v > 0);
@@ -387,6 +391,21 @@
             }
 
             document.getElementById('results').textContent = output;
+
+            // 填充下拉選單
+            const select = document.getElementById('strategySelect');
+            select.innerHTML = '<option value="">請選擇策略</option>'; // 重置選單
+            for (let desc of Object.keys(strategyLogs)) {
+                const option = document.createElement('option');
+                option.value = desc;
+                option.textContent = desc;
+                select.appendChild(option);
+            }
+            // 預設顯示第一個策略的日誌
+            if (Object.keys(strategyLogs).length > 0) {
+                select.value = Object.keys(strategyLogs)[0];
+                document.getElementById('log').value = strategyLogs[Object.keys(strategyLogs)[0]];
+            }
         }
     </script>
 </body>
