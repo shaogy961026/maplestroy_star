@@ -17,18 +17,18 @@ def get_probabilities(event_active=False):
 
 # 星卷價格（楓幣）
 scroll_prices = {
-    15: 81555555,
-    16: 244444444,
-    17: 2396666666,
-    18: 5466666666,
-    19: 17776888888,
-    20: 48888888888
+    15: 56999994,
+    16: 269999999,
+    17: 2379999999,
+    18: 4987600000,
+    19: 15999998999,
+    20: 50489000000
 }
 
 # 基本設定
 points_per_billion = 6
 scroll_costs = {star: price * points_per_billion / 10**8 for star, price in scroll_prices.items()}
-equip_compensation_cost = 3000000000 * points_per_billion / 10**8
+equip_compensation_cost = 5000000 * points_per_billion / 10**8
 upgrade_cost = 9
 protect_cost = 50
 event_active = True
@@ -39,7 +39,7 @@ simulations = 100000
 # 輸出初始條件
 print("=== 程式輸入條件 ===")
 print(f"目標星數：0星到{target}星")
-print(f"活動狀態：{'啟用' if event_active else '未啟用'}（15星強化成功率100%）")
+print(f"活動狀態：{'啟用' if event_active else '未啟用'}（活動指的是 15星強化成功率100%）")
 print("星卷價格（楓幣）：")
 for star, price in scroll_prices.items():
     print(f"{star}星：{price:,} 楓幣")
@@ -50,7 +50,7 @@ for star, cost in scroll_costs.items():
     print(f"{star}星：{cost:.2f} 楓點")
 print(f"\n普通強化成本：{upgrade_cost} 楓點（不防爆設定）")
 print(f"防破壞強化成本：{protect_cost} 楓點（破壞改為掉星，15星維持）")
-print(f"裝備補償成本（破壞時）：{equip_compensation_cost:.2f} 楓點")
+print(f"裝備補償成本（破壞時）：{round(equip_compensation_cost/points_per_billion*10**8)} 楓幣={equip_compensation_cost:.2f} 楓點")
 print("成本已包含裝備破壞後拿裝備修復價格（楓幣楓點換算）")
 print(f"模擬次數：每個策略{simulations:,}次")
 print("=================\n")
