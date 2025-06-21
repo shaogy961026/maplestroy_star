@@ -22,49 +22,53 @@
     <h2>輸入參數</h2>
     <div class="input-group">
         <label>多少楓點 = 1億楓幣:</label>
-        <input type="number" id="pointsPerBillion" value="6" min="1" step="1">
+        <input type="number" id="pointsPerBillion" value="5" min="1" step="1">
     </div>
     <div class="input-group">
         <label>裝備補償價格（楓幣）:</label>
-        <input type="number" id="equipCompensationMaple" value="3000000000" min="0" step="1" oninput="updateEquipCompensation()">
+        <input type="number" id="equipCompensationMaple" value="2100000000" min="0" step="1" oninput="updateEquipCompensation()">
         <label>或（幾億楓幣）:</label>
-        <input type="number" id="equipCompensationBillion" value="30" min="0" step="0.01" oninput="updateEquipCompensation()">
+        <input type="number" id="equipCompensationBillion" value="21" min="0" step="0.01" oninput="updateEquipCompensation()">
     </div>
     <div class="input-group">
         <label>15星卷價格（楓幣）:</label>
-        <input type="number" id="scroll15Maple" value="81555555" min="0" step="1" oninput="updateScrollPrice(15)">
+        <input type="number" id="scroll15Maple" value="62555555" min="0" step="1" oninput="updateScrollPrice(15)">
         <label>或（幾億楓幣）:</label>
-        <input type="number" id="scroll15Billion" value="0.81555555" min="0" step="0.01" oninput="updateScrollPrice(15)">
+        <input type="number" id="scroll15Billion" value="0.62555555" min="0" step="0.01" oninput="updateScrollPrice(15)">
     </div>
     <div class="input-group">
         <label>16星卷價格（楓幣）:</label>
-        <input type="number" id="scroll16Maple" value="244444444" min="0" step="1" oninput="updateScrollPrice(16)">
+        <input type="number" id="scroll16Maple" value="229777777" min="0" step="1" oninput="updateScrollPrice(16)">
         <label>或（幾億楓幣）:</label>
-        <input type="number" id="scroll16Billion" value="2.44444444" min="0" step="0.01" oninput="updateScrollPrice(16)">
+        <input type="number" id="scroll16Billion" value="2.29777777" min="0" step="0.01" oninput="updateScrollPrice(16)">
     </div>
     <div class="input-group">
         <label>17星卷價格（楓幣）:</label>
-        <input type="number" id="scroll17Maple" value="2396666666" min="0" step="1" oninput="updateScrollPrice(17)">
+        <input type="number" id="scroll17Maple" value="1898750000" min="0" step="1" oninput="updateScrollPrice(17)">
         <label>或（幾億楓幣）:</label>
-        <input type="number" id="scroll17Billion" value="23.96666666" min="0" step="0.01" oninput="updateScrollPrice(17)">
+        <input type="number" id="scroll17Billion" value="18.98750000" min="0" step="0.01" oninput="updateScrollPrice(17)">
     </div>
     <div class="input-group">
         <label>18星卷價格（楓幣）:</label>
-        <input type="number" id="scroll18Maple" value="5466666666" min="0" step="1" oninput="updateScrollPrice(18)">
+        <input type="number" id="scroll18Maple" value="4444444444" min="0" step="1" oninput="updateScrollPrice(18)">
         <label>或（幾億楓幣）:</label>
-        <input type="number" id="scroll18Billion" value="54.66666666" min="0" step="0.01" oninput="updateScrollPrice(18)">
+        <input type="number" id="scroll18Billion" value="44.44444444" min="0" step="0.01" oninput="updateScrollPrice(18)">
     </div>
     <div class="input-group">
         <label>19星卷價格（楓幣）:</label>
-        <input type="number" id="scroll19Maple" value="17776888888" min="0" step="1" oninput="updateScrollPrice(19)">
+        <input type="number" id="scroll19Maple" value="13333333333" min="0" step="1" oninput="updateScrollPrice(19)">
         <label>或（幾億楓幣）:</label>
-        <input type="number" id="scroll19Billion" value="177.76888888" min="0" step="0.01" oninput="updateScrollPrice(19)">
+        <input type="number" id="scroll19Billion" value="133.33333333" min="0" step="0.01" oninput="updateScrollPrice(19)">
     </div>
     <div class="input-group">
         <label>20星卷價格（楓幣）:</label>
-        <input type="number" id="scroll20Maple" value="48888888888" min="0" step="1" oninput="updateScrollPrice(20)">
+        <input type="number" id="scroll20Maple" value="39999999999" min="0" step="1" oninput="updateScrollPrice(20)">
         <label>或（幾億楓幣）:</label>
-        <input type="number" id="scroll20Billion" value="488.88888888" min="0" step="0.01" oninput="updateScrollPrice(20)">
+        <input type="number" id="scroll20Billion" value="399.99999999" min="0" step="0.01" oninput="updateScrollPrice(20)">
+    </div>
+    <div class="input-group">
+        <label for="eventActiveCheckbox">15星100%活動是否啟用：</label>
+        <input type="checkbox" id="eventActiveCheckbox" unchecked>
     </div>
     <button onclick="runSimulation()">開始模擬</button>
 
@@ -102,8 +106,9 @@
             }
         }
 
-        // 機率表
-        function getProbabilities(eventActive = true) {
+        // 機率表（根據勾選狀態決定15星成功率）
+        function getProbabilities() {
+            const eventActive = document.getElementById('eventActiveCheckbox').checked;
             const baseProbabilities = {
                 15: { success: 0.3000, destroy: 0.1050, drop: 0.0000, hold: 0.5950 },
                 16: { success: 0.3000, destroy: 0.1400, drop: 0.5600, hold: 0.0000 },
@@ -119,7 +124,7 @@
 
         // 模擬函數
         function simulateFromStart(startStar, restartStar, protectStart = null, buyBackThreshold = null, specialProtect = false, target = 20, simulations = 100000) {
-            const probabilities = getProbabilities(true);
+            const probabilities = getProbabilities();
             const pointsPerBillion = parseFloat(document.getElementById('pointsPerBillion').value);
             const scrollCosts = {};
             for (let star = 15; star <= 20; star++) {
@@ -128,12 +133,11 @@
             const equipCompensationCost = parseFloat(document.getElementById('equipCompensationMaple').value) * pointsPerBillion / 1e8;
             const upgradeCost = 9;
             const protectCost = 50;
-
             const totalCosts = [];
             const totalDestroys = [];
             let logContent = `模擬策略：起始買${startStar}星卷，若破壞後買${restartStar}星卷` +
                             (buyBackThreshold !== null ? `，下降到${buyBackThreshold}星買回${startStar}星` : '') +
-                            (protectStart !== null ? `，從${protectStart}星開始防破壞` : '') +
+                            (protectStart !== null ? `，從${protectStart}星開始防破壞` : '（無防破壞）') +
                             (specialProtect ? `，僅在19星及19掉18時防破壞` : '（無防破壞）') + '\n\n';
 
             const allCosts = [];
@@ -231,7 +235,6 @@
                         consecutiveDrops = 0;
                     }
                 }
-
                 allCosts.push(totalCost);
                 totalCosts.push(totalCost);
                 totalDestroys.push(destroyCount);
@@ -279,10 +282,10 @@
                 scrollCosts[star] = parseFloat(document.getElementById(`scroll${star}Maple`).value) * pointsPerBillion / 1e8;
             }
             const equipCompensationCost = parseFloat(document.getElementById('equipCompensationMaple').value) * pointsPerBillion / 1e8;
-
+            const eventActive = document.getElementById('eventActiveCheckbox').checked;
             let output = "=== 程式輸入條件 ===\n";
             output += "目標星數：0星到20星\n";
-            output += "活動狀態：啟用（15星強化成功率100%）\n";
+            output += `活動狀態：${eventActive ? '啟用（15星強化成功率100%）' : '未啟用（15星強化成功率30%）'}\n`;
             output += "星卷價格（楓幣）：\n";
             for (let star = 15; star <= 20; star++) {
                 output += `${star}星：${parseFloat(document.getElementById(`scroll${star}Maple`).value).toLocaleString()} 楓幣\n`;
@@ -377,7 +380,6 @@
                 count++;
                 output += `${count}. ${desc}\n`;
             }
-
             // 前三佳策略
             output += "\n=== 前三佳策略 ===\n";
             const topStrategies = Object.entries(results).sort((a, b) => a[1][0] - b[1][0]).slice(0, 3);
